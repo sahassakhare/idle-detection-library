@@ -1,0 +1,71 @@
+/* Minimal Theme for Idle Warning Dialog */
+/* Import this CSS file for minimal theme support */
+
+.idle-warning-dialog.theme-minimal {
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  border: 1px solid #e2e8f0;
+}
+
+.idle-warning-dialog.theme-minimal .idle-warning-header {
+  border-bottom: 1px solid #e2e8f0;
+  padding: 15px 20px 10px;
+}
+
+.idle-warning-dialog.theme-minimal .idle-warning-title {
+  font-size: 1.25rem;
+  font-weight: 600;
+}
+
+.idle-warning-dialog.theme-minimal .idle-warning-body {
+  padding: 15px 20px;
+}
+
+.idle-warning-dialog.theme-minimal .idle-warning-countdown {
+  background-color: #f7fafc;
+  border: 1px solid #e2e8f0;
+  border-left: 3px solid #4299e1;
+}
+
+.idle-warning-dialog.theme-minimal .idle-warning-progress {
+  height: 4px;
+  background-color: #f7fafc;
+  border: 1px solid #e2e8f0;
+}
+
+.idle-warning-dialog.theme-minimal .progress-bar {
+  background-color: #4299e1;
+}
+
+.idle-warning-dialog.theme-minimal .idle-warning-actions {
+  border-top: 1px solid #e2e8f0;
+  padding: 15px 20px;
+  gap: 8px;
+}
+
+.idle-warning-dialog.theme-minimal .btn {
+  border-radius: 4px;
+  font-weight: 500;
+  min-width: 100px;
+  border: 1px solid transparent;
+}
+
+.idle-warning-dialog.theme-minimal .btn-primary {
+  background-color: #4299e1;
+  border-color: #4299e1;
+}
+
+.idle-warning-dialog.theme-minimal .btn-primary:hover {
+  background-color: #3182ce;
+  border-color: #3182ce;
+}
+
+.idle-warning-dialog.theme-minimal .btn-secondary {
+  background-color: transparent;
+  color: #4a5568;
+  border-color: #e2e8f0;
+}
+
+.idle-warning-dialog.theme-minimal .btn-secondary:hover {
+  background-color: #f7fafc;
+  border-color: #cbd5e0;
+}

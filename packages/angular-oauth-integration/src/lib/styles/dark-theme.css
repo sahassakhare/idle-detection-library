@@ -1,0 +1,64 @@
+/* Dark Theme for Idle Warning Dialog */
+/* Import this CSS file for dark theme support */
+
+.idle-warning-backdrop.theme-dark {
+  background-color: rgba(0, 0, 0, 0.8);
+}
+
+.idle-warning-dialog.theme-dark {
+  background: #2d3748;
+  color: #e2e8f0;
+}
+
+.idle-warning-dialog.theme-dark .idle-warning-title {
+  color: #e2e8f0;
+}
+
+.idle-warning-dialog.theme-dark .idle-warning-message {
+  color: #a0aec0;
+}
+
+.idle-warning-dialog.theme-dark .idle-warning-header {
+  border-bottom-color: #4a5568;
+}
+
+.idle-warning-dialog.theme-dark .idle-warning-countdown {
+  background-color: #4a5568;
+  border-left-color: #ed8936;
+}
+
+.idle-warning-dialog.theme-dark .countdown-label {
+  color: #a0aec0;
+}
+
+.idle-warning-dialog.theme-dark .countdown-time {
+  color: #fc8181;
+}
+
+.idle-warning-dialog.theme-dark .idle-warning-progress {
+  background-color: #4a5568;
+}
+
+.idle-warning-dialog.theme-dark .progress-bar {
+  background-color: #e53e3e;
+}
+
+.idle-warning-dialog.theme-dark .idle-warning-actions {
+  border-top-color: #4a5568;
+}
+
+.idle-warning-dialog.theme-dark .btn-primary {
+  background-color: #4299e1;
+}
+
+.idle-warning-dialog.theme-dark .btn-primary:hover {
+  background-color: #3182ce;
+}
+
+.idle-warning-dialog.theme-dark .btn-secondary {
+  background-color: #718096;
+}
+
+.idle-warning-dialog.theme-dark .btn-secondary:hover {
+  background-color: #4a5568;
+}

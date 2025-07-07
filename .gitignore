@@ -84,9 +84,10 @@ packages/**/example/environment*.ts.local
 
 # Build artifacts
 packages/**/dist/
-packages/**/lib/
 packages/**/esm/
 packages/**/bundles/
+# Only ignore built lib directories, not source lib directories
+packages/*/dist/lib/
 
 # Development files
 *.tgz
