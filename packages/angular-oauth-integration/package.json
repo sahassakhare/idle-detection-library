@@ -1,13 +1,19 @@
 {
   "name": "@idle-detection/angular-oauth-integration",
   "version": "1.0.0",
-  "description": "Angular integration for idle detection with OAuth support",
+  "description": "Angular integration for idle detection with OAuth support using NgRx Store",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
+  "files": [
+    "dist/**/*",
+    "README.md",
+    "LICENSE"
+  ],
   "scripts": {
     "build": "tsc",
     "test": "jest",
-    "example": "cd example && npm start"
+    "example": "cd example && npm start",
+    "prepublishOnly": "npm run build"
   },
   "peerDependencies": {
     "@angular/core": "^18.0.0 || ^19.0.0",
@@ -37,8 +43,25 @@
     "oidc",
     "session",
     "timeout",
-    "angular18"
+    "angular18",
+    "ngrx",
+    "store",
+    "auth",
+    "authentication",
+    "angular-oauth-integration"
   ],
-  "author": "Your Name",
-  "license": "MIT"
+  "author": "Sahas Sakhare <sahassakhare@users.noreply.github.com>",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/sahassakhare/idle-detection-library.git",
+    "directory": "packages/angular-oauth-integration"
+  },
+  "bugs": {
+    "url": "https://github.com/sahassakhare/idle-detection-library/issues"
+  },
+  "homepage": "https://github.com/sahassakhare/idle-detection-library#readme",
+  "publishConfig": {
+    "access": "public"
+  }
 }

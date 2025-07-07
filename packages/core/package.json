@@ -4,10 +4,15 @@
   "description": "Core idle detection functionality",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
+  "files": [
+    "dist/**/*",
+    "README.md"
+  ],
   "scripts": {
     "build": "tsc",
     "test": "jest",
-    "lint": "eslint src/**/*.ts"
+    "lint": "eslint src/**/*.ts",
+    "prepublishOnly": "npm run build"
   },
   "dependencies": {},
   "devDependencies": {
@@ -16,7 +21,22 @@
   "keywords": [
     "idle",
     "detection",
-    "core"
+    "core",
+    "typescript",
+    "javascript"
   ],
-  "license": "MIT"
+  "author": "Sahas Sakhare <sahassakhare@users.noreply.github.com>",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/sahassakhare/idle-detection-library.git",
+    "directory": "packages/core"
+  },
+  "bugs": {
+    "url": "https://github.com/sahassakhare/idle-detection-library/issues"
+  },
+  "homepage": "https://github.com/sahassakhare/idle-detection-library#readme",
+  "publishConfig": {
+    "access": "public"
+  }
 }
