@@ -1,0 +1,44 @@
+{
+  "name": "@idle-detection/angular-oauth-integration",
+  "version": "1.0.0",
+  "description": "Angular integration for idle detection with OAuth support",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "scripts": {
+    "build": "tsc",
+    "test": "jest",
+    "example": "cd example && npm start"
+  },
+  "peerDependencies": {
+    "@angular/core": "^18.0.0 || ^19.0.0",
+    "@angular/common": "^18.0.0 || ^19.0.0",
+    "angular-auth-oidc-client": "^18.0.0 || ^19.0.0",
+    "rxjs": "^7.5.0",
+    "@idle-detection/core": "^1.0.0",
+    "@ngrx/store": "^18.0.0 || ^19.0.0",
+    "@ngrx/effects": "^18.0.0 || ^19.0.0"
+  },
+  "devDependencies": {
+    "@angular/core": "^18.0.0",
+    "@angular/common": "^18.0.0",
+    "angular-auth-oidc-client": "^18.0.0",
+    "rxjs": "^7.5.0",
+    "@ngrx/store": "^18.0.0",
+    "@ngrx/effects": "^18.0.0",
+    "typescript": "^5.4.0",
+    "jest": "^29.0.0",
+    "@types/jest": "^29.0.0"
+  },
+  "keywords": [
+    "angular",
+    "idle",
+    "detection",
+    "oauth",
+    "oidc",
+    "session",
+    "timeout",
+    "angular18"
+  ],
+  "author": "Your Name",
+  "license": "MIT"
+}

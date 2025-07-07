@@ -1,0 +1,22 @@
+{
+  "name": "@idle-detection/core",
+  "version": "1.0.0",
+  "description": "Core idle detection functionality",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "scripts": {
+    "build": "tsc",
+    "test": "jest",
+    "lint": "eslint src/**/*.ts"
+  },
+  "dependencies": {},
+  "devDependencies": {
+    "typescript": "^5.0.0"
+  },
+  "keywords": [
+    "idle",
+    "detection",
+    "core"
+  ],
+  "license": "MIT"
+}

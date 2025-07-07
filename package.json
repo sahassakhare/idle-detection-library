@@ -1,0 +1,86 @@
+{
+  "name": "idle-detection-library",
+  "version": "1.0.0",
+  "description": "A comprehensive Angular library for detecting user inactivity and managing OAuth session timeouts",
+  "private": true,
+  "engines": {
+    "node": ">=18.0.0",
+    "npm": ">=8.0.0"
+  },
+  "scripts": {
+    "build": "lerna run build",
+    "build:angular-oauth-integration": "lerna run build --scope=@idle-detection/angular-oauth-integration",
+    "test": "lerna run test",
+    "test:watch": "lerna run test:watch",
+    "e2e": "lerna run e2e",
+    "lint": "lerna run lint",
+    "lint:fix": "lerna run lint:fix",
+    "format": "prettier --write \"packages/**/*.{ts,js,json,md}\"",
+    "format:check": "prettier --check \"packages/**/*.{ts,js,json,md}\"",
+    "clean": "lerna run clean && lerna clean -y",
+    "bootstrap": "lerna bootstrap",
+    "version": "lerna version",
+    "publish": "lerna publish from-package",
+    "publish:canary": "lerna publish --canary",
+    "prepare": "husky install",
+    "demo": "npm run demo --prefix packages/angular-oauth-integration/example",
+    "start:example": "npm run start --prefix packages/angular-oauth-integration/example"
+  },
+  "workspaces": [
+    "packages/*"
+  ],
+  "devDependencies": {
+    "@angular/cli": "^18.0.0",
+    "@types/jest": "^29.0.0",
+    "@types/node": "^20.0.0",
+    "@typescript-eslint/eslint-plugin": "^7.0.0",
+    "@typescript-eslint/parser": "^7.0.0",
+    "eslint": "^8.57.0",
+    "eslint-config-prettier": "^9.0.0",
+    "eslint-plugin-prettier": "^5.0.0",
+    "husky": "^8.0.0",
+    "jest": "^29.0.0",
+    "lerna": "^8.0.0",
+    "lint-staged": "^15.0.0",
+    "prettier": "^3.0.0",
+    "ts-jest": "^29.0.0",
+    "typescript": "~5.4.0"
+  },
+  "lint-staged": {
+    "*.{ts,js,json,md}": [
+      "prettier --write",
+      "git add"
+    ],
+    "*.{ts,js}": [
+      "eslint --fix",
+      "git add"
+    ]
+  },
+  "keywords": [
+    "angular",
+    "idle",
+    "detection",
+    "timeout",
+    "oauth",
+    "session",
+    "auth",
+    "oidc",
+    "angular-18",
+    "signals",
+    "standalone",
+    "style-agnostic"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/sahassakhare/idle-detection-library.git"
+  },
+  "bugs": {
+    "url": "https://github.com/sahassakhare/idle-detection-library/issues"
+  },
+  "homepage": "https://github.com/sahassakhare/idle-detection-library#readme",
+  "author": "Idle Detection Library Contributors",
+  "license": "MIT",
+  "dependencies": {
+    "@angular/router": "^18.2.13"
+  }
+}

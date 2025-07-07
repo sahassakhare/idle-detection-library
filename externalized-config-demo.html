@@ -1,0 +1,702 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Externalized Configuration Demo - Angular 18+ Idle Detection</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            margin: 0;
+            padding: 20px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+        }
+        
+        .container {
+            max-width: 1600px;
+            margin: 0 auto;
+        }
+        
+        .header {
+            background: rgba(255,255,255,0.1);
+            backdrop-filter: blur(10px);
+            color: white;
+            padding: 2rem;
+            border-radius: 16px;
+            text-align: center;
+            margin-bottom: 2rem;
+            border: 1px solid rgba(255,255,255,0.2);
+        }
+        
+        .config-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr 1fr;
+            gap: 1.5rem;
+            margin-bottom: 2rem;
+        }
+        
+        .config-panel {
+            background: rgba(255,255,255,0.95);
+            border-radius: 12px;
+            padding: 1.5rem;
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255,255,255,0.3);
+        }
+        
+        .environment-selector {
+            background: rgba(255,255,255,0.95);
+            border-radius: 12px;
+            padding: 1.5rem;
+            margin-bottom: 2rem;
+            text-align: center;
+        }
+        
+        .env-buttons {
+            display: flex;
+            gap: 1rem;
+            justify-content: center;
+            flex-wrap: wrap;
+        }
+        
+        .env-btn {
+            padding: 12px 24px;
+            border: 2px solid;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: 500;
+            transition: all 0.3s ease;
+            min-width: 120px;
+        }
+        
+        .env-btn.development {
+            border-color: #007bff;
+            background: #e3f2fd;
+            color: #1565c0;
+        }
+        
+        .env-btn.development.active {
+            background: #007bff;
+            color: white;
+        }
+        
+        .env-btn.staging {
+            border-color: #ff9800;
+            background: #fff3e0;
+            color: #ef6c00;
+        }
+        
+        .env-btn.staging.active {
+            background: #ff9800;
+            color: white;
+        }
+        
+        .env-btn.production {
+            border-color: #4caf50;
+            background: #e8f5e8;
+            color: #2e7d32;
+        }
+        
+        .env-btn.production.active {
+            background: #4caf50;
+            color: white;
+        }
+        
+        .config-section h3 {
+            margin: 0 0 1rem 0;
+            color: #2c3e50;
+            border-bottom: 2px solid #e0e0e0;
+            padding-bottom: 0.5rem;
+        }
+        
+        .config-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 0.75rem;
+            margin-bottom: 0.5rem;
+            background: #f8f9fa;
+            border-radius: 6px;
+            border-left: 4px solid #007bff;
+        }
+        
+        .config-label {
+            font-weight: 500;
+            color: #495057;
+        }
+        
+        .config-value {
+            font-family: 'Monaco', 'Menlo', 'Consolas', monospace;
+            background: white;
+            padding: 0.25rem 0.5rem;
+            border-radius: 4px;
+            border: 1px solid #e0e0e0;
+            color: #2c3e50;
+        }
+        
+        .json-preview {
+            background: #2d3748;
+            color: #e2e8f0;
+            padding: 1rem;
+            border-radius: 8px;
+            font-family: 'Monaco', 'Menlo', 'Consolas', monospace;
+            font-size: 0.85rem;
+            overflow-x: auto;
+            max-height: 400px;
+            overflow-y: auto;
+            line-height: 1.4;
+        }
+        
+        .json-key {
+            color: #68d391;
+        }
+        
+        .json-string {
+            color: #fbb6ce;
+        }
+        
+        .json-number {
+            color: #63b3ed;
+        }
+        
+        .json-boolean {
+            color: #f6ad55;
+        }
+        
+        .demo-section {
+            background: rgba(255,255,255,0.95);
+            border-radius: 12px;
+            padding: 2rem;
+            margin-bottom: 2rem;
+        }
+        
+        .usage-examples {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 2rem;
+        }
+        
+        .example-block {
+            background: #f8f9fa;
+            border: 1px solid #e9ecef;
+            border-radius: 8px;
+            padding: 1rem;
+        }
+        
+        .example-block h4 {
+            margin: 0 0 0.5rem 0;
+            color: #495057;
+        }
+        
+        .code-block {
+            background: #2d3748;
+            color: #e2e8f0;
+            padding: 1rem;
+            border-radius: 6px;
+            font-family: 'Monaco', 'Menlo', 'Consolas', monospace;
+            font-size: 0.85rem;
+            overflow-x: auto;
+            line-height: 1.4;
+        }
+        
+        .highlight {
+            background: rgba(255, 255, 0, 0.2);
+            padding: 2px 4px;
+            border-radius: 3px;
+        }
+        
+        .benefits {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 1.5rem;
+            margin: 2rem 0;
+        }
+        
+        .benefit-card {
+            background: white;
+            padding: 1.5rem;
+            border-radius: 8px;
+            border-left: 4px solid #28a745;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        }
+        
+        .benefit-card h4 {
+            margin: 0 0 0.5rem 0;
+            color: #28a745;
+        }
+        
+        .implementation-steps {
+            background: white;
+            padding: 2rem;
+            border-radius: 12px;
+            margin: 2rem 0;
+        }
+        
+        .step {
+            display: flex;
+            margin-bottom: 1.5rem;
+            padding-bottom: 1.5rem;
+            border-bottom: 1px solid #e0e0e0;
+        }
+        
+        .step:last-child {
+            border-bottom: none;
+            margin-bottom: 0;
+        }
+        
+        .step-number {
+            background: #007bff;
+            color: white;
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+            margin-right: 1rem;
+            flex-shrink: 0;
+        }
+        
+        .step-content h4 {
+            margin: 0 0 0.5rem 0;
+            color: #2c3e50;
+        }
+        
+        .step-content p {
+            margin: 0;
+            color: #6c757d;
+        }
+        
+        @media (max-width: 1200px) {
+            .config-grid {
+                grid-template-columns: 1fr 1fr;
+            }
+        }
+        
+        @media (max-width: 768px) {
+            .config-grid,
+            .usage-examples {
+                grid-template-columns: 1fr;
+            }
+            
+            .env-buttons {
+                flex-direction: column;
+                align-items: center;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🔧 Externalized Configuration Demo</h1>
+            <p>Angular 18+ Idle Detection with Environment-Based Configuration</p>
+        </div>
+
+        <!-- Environment Selector -->
+        <div class="environment-selector">
+            <h2>🌍 Select Environment to View Configuration</h2>
+            <div class="env-buttons">
+                <button class="env-btn development active" onclick="switchEnvironment('development')">
+                    🔧 Development
+                </button>
+                <button class="env-btn staging" onclick="switchEnvironment('staging')">
+                    🧪 Staging
+                </button>
+                <button class="env-btn production" onclick="switchEnvironment('production')">
+                    🚀 Production
+                </button>
+            </div>
+        </div>
+
+        <!-- Configuration Display -->
+        <div class="config-grid">
+            <!-- Basic Configuration -->
+            <div class="config-panel">
+                <div class="config-section">
+                    <h3>⏱️ Timeout Configuration</h3>
+                    <div class="config-item">
+                        <span class="config-label">Idle Timeout:</span>
+                        <span class="config-value" id="idleTimeout">2 minutes</span>
+                    </div>
+                    <div class="config-item">
+                        <span class="config-label">Warning Timeout:</span>
+                        <span class="config-value" id="warningTimeout">30 seconds</span>
+                    </div>
+                    <div class="config-item">
+                        <span class="config-label">Auto Refresh:</span>
+                        <span class="config-value" id="autoRefresh">true</span>
+                    </div>
+                    <div class="config-item">
+                        <span class="config-label">Multi-tab Sync:</span>
+                        <span class="config-value" id="multiTab">true</span>
+                    </div>
+                    <div class="config-item">
+                        <span class="config-label">Debug Mode:</span>
+                        <span class="config-value" id="debugMode">true</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Dialog Configuration -->
+            <div class="config-panel">
+                <div class="config-section">
+                    <h3>💬 Dialog Configuration</h3>
+                    <div class="config-item">
+                        <span class="config-label">Theme:</span>
+                        <span class="config-value" id="dialogTheme">dark</span>
+                    </div>
+                    <div class="config-item">
+                        <span class="config-label">Size:</span>
+                        <span class="config-value" id="dialogSize">large</span>
+                    </div>
+                    <div class="config-item">
+                        <span class="config-label">Progress Bar:</span>
+                        <span class="config-value" id="showProgress">true</span>
+                    </div>
+                    <div class="config-item">
+                        <span class="config-label">Countdown:</span>
+                        <span class="config-value" id="showCountdown">true</span>
+                    </div>
+                    <div class="config-item">
+                        <span class="config-label">Backdrop Close:</span>
+                        <span class="config-value" id="backdropClose">true</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Environment Info -->
+            <div class="config-panel">
+                <div class="config-section">
+                    <h3>🌐 Environment Info</h3>
+                    <div class="config-item">
+                        <span class="config-label">Environment:</span>
+                        <span class="config-value" id="currentEnv">development</span>
+                    </div>
+                    <div class="config-item">
+                        <span class="config-label">Config Source:</span>
+                        <span class="config-value">JSON File</span>
+                    </div>
+                    <div class="config-item">
+                        <span class="config-label">Dialog Title:</span>
+                        <span class="config-value" id="dialogTitle">DEV: Session Timeout</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- JSON Configuration Preview -->
+        <div class="demo-section">
+            <h2>📋 JSON Configuration File</h2>
+            <p>This is how the configuration looks in the external JSON file:</p>
+            <div class="json-preview" id="jsonPreview">
+                <!-- JSON content will be populated here -->
+            </div>
+        </div>
+
+        <!-- Usage Examples -->
+        <div class="demo-section">
+            <h2>💻 Implementation Examples</h2>
+            <div class="usage-examples">
+                <!-- Environment Configuration -->
+                <div class="example-block">
+                    <h4>Environment Configuration</h4>
+                    <div class="code-block">
+<span class="json-key">// environment.ts</span>
+export const environment = {
+  production: <span class="json-boolean">false</span>,
+  idleConfig: {
+    idleTimeout: <span class="json-number">120000</span>, <span class="json-key">// 2 minutes</span>
+    warningTimeout: <span class="json-number">30000</span>, <span class="json-key">// 30 seconds</span>
+    debug: <span class="json-boolean">true</span>
+  }
+};
+                    </div>
+                </div>
+
+                <!-- Service Configuration -->
+                <div class="example-block">
+                    <h4>Service Configuration Loading</h4>
+                    <div class="code-block">
+<span class="json-key">// config.service.ts</span>
+async loadConfig(): Promise&lt;IdleConfig&gt; {
+  const configs = await this.http.get&lt;AppConfig&gt;(
+    <span class="json-string">'assets/config/idle-config.json'</span>
+  ).toPromise();
+  
+  const env = this.getEnvironment();
+  return configs[env] || configs.production;
+}
+                    </div>
+                </div>
+
+                <!-- Bootstrap Configuration -->
+                <div class="example-block">
+                    <h4>Bootstrap Configuration</h4>
+                    <div class="code-block">
+<span class="json-key">// main.ts</span>
+bootstrapApplication(AppComponent, {
+  providers: [
+    provideIdleOAuth(<span class="highlight">environment.idleConfig</span>),
+    
+    <span class="json-key">// OR load from external JSON:</span>
+    {
+      provide: <span class="json-string">'IDLE_CONFIG_FACTORY'</span>,
+      useFactory: (configService: ConfigService) =&gt; 
+        configService.getConfig(),
+      deps: [ConfigService]
+    }
+  ]
+});
+                    </div>
+                </div>
+
+                <!-- Runtime Configuration -->
+                <div class="example-block">
+                    <h4>Runtime Configuration Updates</h4>
+                    <div class="code-block">
+<span class="json-key">// component.ts</span>
+updateTimeout(preset: string) {
+  this.configService.applyPreset(preset);
+  
+  <span class="json-key">// Or custom configuration:</span>
+  this.configService.updateConfig({
+    idleTimeout: <span class="json-number">30</span> * <span class="json-number">60</span> * <span class="json-number">1000</span>, <span class="json-key">// 30 min</span>
+    warningTimeout: <span class="json-number">5</span> * <span class="json-number">60</span> * <span class="json-number">1000</span>   <span class="json-key">// 5 min</span>
+  });
+}
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Benefits Section -->
+        <div class="demo-section">
+            <h2>✅ Benefits of Externalized Configuration</h2>
+            <div class="benefits">
+                <div class="benefit-card">
+                    <h4>🌍 Environment-Specific</h4>
+                    <p>Different timeout settings for development, staging, and production environments without code changes.</p>
+                </div>
+                
+                <div class="benefit-card">
+                    <h4>🔧 Runtime Updates</h4>
+                    <p>Update configuration without rebuilding or redeploying the application.</p>
+                </div>
+                
+                <div class="benefit-card">
+                    <h4>🎯 Role-Based</h4>
+                    <p>Apply different timeout settings based on user roles and permissions.</p>
+                </div>
+                
+                <div class="benefit-card">
+                    <h4>📊 Centralized Management</h4>
+                    <p>Manage all timeout configurations from a single location.</p>
+                </div>
+                
+                <div class="benefit-card">
+                    <h4>🧪 Easy Testing</h4>
+                    <p>Use shorter timeouts in development for faster testing cycles.</p>
+                </div>
+                
+                <div class="benefit-card">
+                    <h4>🔒 Security Compliance</h4>
+                    <p>Meet different security requirements across environments.</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Implementation Steps -->
+        <div class="implementation-steps">
+            <h2>🚀 Implementation Steps</h2>
+            
+            <div class="step">
+                <div class="step-number">1</div>
+                <div class="step-content">
+                    <h4>Create Configuration Files</h4>
+                    <p>Set up environment-specific configuration files or external JSON files containing timeout settings.</p>
+                </div>
+            </div>
+            
+            <div class="step">
+                <div class="step-number">2</div>
+                <div class="step-content">
+                    <h4>Build Configuration Service</h4>
+                    <p>Create a service to load, manage, and update configuration at runtime.</p>
+                </div>
+            </div>
+            
+            <div class="step">
+                <div class="step-number">3</div>
+                <div class="step-content">
+                    <h4>Initialize on Bootstrap</h4>
+                    <p>Use APP_INITIALIZER to load configuration before the application starts.</p>
+                </div>
+            </div>
+            
+            <div class="step">
+                <div class="step-number">4</div>
+                <div class="step-content">
+                    <h4>Apply to Idle Service</h4>
+                    <p>Configure the idle detection service with the loaded configuration.</p>
+                </div>
+            </div>
+            
+            <div class="step">
+                <div class="step-number">5</div>
+                <div class="step-content">
+                    <h4>Add Admin Interface</h4>
+                    <p>Create an admin interface for runtime configuration updates and testing.</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Configuration data for different environments
+        const configurations = {
+            development: {
+                idleTimeout: 120000,
+                warningTimeout: 30000,
+                autoRefreshToken: true,
+                enableMultiTabCoordination: true,
+                debug: true,
+                warningDialogConfig: {
+                    title: "🔧 DEV: Session Timeout",
+                    message: "Development mode with short timeout for quick testing",
+                    theme: "dark",
+                    size: "large",
+                    showProgressBar: true,
+                    showCountdown: true,
+                    backdropClose: true
+                }
+            },
+            staging: {
+                idleTimeout: 600000,
+                warningTimeout: 120000,
+                autoRefreshToken: true,
+                enableMultiTabCoordination: true,
+                debug: true,
+                warningDialogConfig: {
+                    title: "🧪 STAGING: Session Warning",
+                    message: "Staging environment - session will expire soon",
+                    theme: "minimal",
+                    size: "medium",
+                    showProgressBar: true,
+                    showCountdown: true,
+                    backdropClose: false
+                }
+            },
+            production: {
+                idleTimeout: 1800000,
+                warningTimeout: 300000,
+                autoRefreshToken: true,
+                enableMultiTabCoordination: true,
+                debug: false,
+                warningDialogConfig: {
+                    title: "Session Timeout Warning",
+                    message: "Your session will expire soon due to inactivity",
+                    theme: "default",
+                    size: "medium",
+                    showProgressBar: true,
+                    showCountdown: true,
+                    backdropClose: false
+                }
+            }
+        };
+
+        let currentEnvironment = 'development';
+
+        function switchEnvironment(env) {
+            currentEnvironment = env;
+            
+            // Update button states
+            document.querySelectorAll('.env-btn').forEach(btn => {
+                btn.classList.remove('active');
+            });
+            document.querySelector(`.env-btn.${env}`).classList.add('active');
+            
+            // Update configuration display
+            updateConfigurationDisplay(env);
+            updateJsonPreview(env);
+        }
+
+        function updateConfigurationDisplay(env) {
+            const config = configurations[env];
+            
+            // Update basic configuration
+            document.getElementById('idleTimeout').textContent = formatDuration(config.idleTimeout);
+            document.getElementById('warningTimeout').textContent = formatDuration(config.warningTimeout);
+            document.getElementById('autoRefresh').textContent = config.autoRefreshToken.toString();
+            document.getElementById('multiTab').textContent = config.enableMultiTabCoordination.toString();
+            document.getElementById('debugMode').textContent = config.debug.toString();
+            
+            // Update dialog configuration
+            const dialogConfig = config.warningDialogConfig;
+            document.getElementById('dialogTheme').textContent = dialogConfig.theme;
+            document.getElementById('dialogSize').textContent = dialogConfig.size;
+            document.getElementById('showProgress').textContent = dialogConfig.showProgressBar.toString();
+            document.getElementById('showCountdown').textContent = dialogConfig.showCountdown.toString();
+            document.getElementById('backdropClose').textContent = dialogConfig.backdropClose.toString();
+            
+            // Update environment info
+            document.getElementById('currentEnv').textContent = env;
+            document.getElementById('dialogTitle').textContent = dialogConfig.title;
+        }
+
+        function updateJsonPreview(env) {
+            const config = configurations[env];
+            const jsonPreview = document.getElementById('jsonPreview');
+            
+            const formatted = formatJsonForDisplay(config);
+            jsonPreview.innerHTML = `<span class="json-key">// assets/config/idle-config.json</span>\n{\n  <span class="json-key">"${env}"</span>: ${formatted}\n}`;
+        }
+
+        function formatJsonForDisplay(obj, indent = 2) {
+            const spaces = ' '.repeat(indent);
+            let result = '{\n';
+            
+            Object.entries(obj).forEach(([key, value], index, array) => {
+                result += `${spaces}  <span class="json-key">"${key}"</span>: `;
+                
+                if (typeof value === 'string') {
+                    result += `<span class="json-string">"${value}"</span>`;
+                } else if (typeof value === 'number') {
+                    result += `<span class="json-number">${value}</span>`;
+                } else if (typeof value === 'boolean') {
+                    result += `<span class="json-boolean">${value}</span>`;
+                } else if (typeof value === 'object' && value !== null) {
+                    result += formatJsonForDisplay(value, indent + 2);
+                }
+                
+                if (index < array.length - 1) {
+                    result += ',';
+                }
+                result += '\n';
+            });
+            
+            result += `${spaces}}`;
+            return result;
+        }
+
+        function formatDuration(milliseconds) {
+            const totalSeconds = Math.floor(milliseconds / 1000);
+            const minutes = Math.floor(totalSeconds / 60);
+            const seconds = totalSeconds % 60;
+            
+            if (minutes > 0) {
+                return `${minutes} minute${minutes !== 1 ? 's' : ''}${seconds > 0 ? ` ${seconds}s` : ''}`;
+            }
+            return `${seconds} second${seconds !== 1 ? 's' : ''}`;
+        }
+
+        // Initialize with development environment
+        window.addEventListener('load', () => {
+            switchEnvironment('development');
+            console.log('🔧 Externalized Configuration Demo loaded');
+            console.log('💡 Switch between environments to see different configuration values');
+        });
+    </script>
+</body>
+</html>

@@ -1,0 +1,66 @@
+{
+  "development": {
+    "idleTimeout": 120000,
+    "warningTimeout": 30000,
+    "autoRefreshToken": true,
+    "enableMultiTabCoordination": true,
+    "debug": true,
+    "warningDialogConfig": {
+      "title": "🔧 DEV: Session Timeout",
+      "message": "Development mode with short timeout for quick testing. Move your mouse to stay active!",
+      "extendButtonLabel": "🔄 Keep Testing",
+      "logoutButtonLabel": "🚪 End Session",
+      "theme": "dark",
+      "size": "large",
+      "showProgressBar": true,
+      "showCountdown": true,
+      "autoClose": false,
+      "backdropClose": true,
+      "customStyles": {
+        "border": "2px solid #007bff",
+        "border-radius": "12px"
+      }
+    }
+  },
+  "staging": {
+    "idleTimeout": 600000,
+    "warningTimeout": 120000,
+    "autoRefreshToken": true,
+    "enableMultiTabCoordination": true,
+    "debug": true,
+    "warningDialogConfig": {
+      "title": "🧪 STAGING: Session Warning",
+      "message": "Staging environment - your session will expire soon due to inactivity.",
+      "extendButtonLabel": "Continue Working",
+      "logoutButtonLabel": "Logout",
+      "theme": "minimal",
+      "size": "medium",
+      "showProgressBar": true,
+      "showCountdown": true,
+      "autoClose": false,
+      "backdropClose": false
+    }
+  },
+  "production": {
+    "idleTimeout": 1800000,
+    "warningTimeout": 300000,
+    "autoRefreshToken": true,
+    "enableMultiTabCoordination": true,
+    "debug": false,
+    "warningDialogConfig": {
+      "title": "Session Timeout Warning",
+      "message": "Your session will expire soon due to inactivity. Please take action to continue.",
+      "extendButtonLabel": "Stay Logged In",
+      "logoutButtonLabel": "Logout Now",
+      "theme": "default",
+      "size": "medium",
+      "showProgressBar": true,
+      "showCountdown": true,
+      "autoClose": false,
+      "backdropClose": false,
+      "customStyles": {
+        "box-shadow": "0 10px 30px rgba(0,0,0,0.2)"
+      }
+    }
+  }
+}

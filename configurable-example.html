@@ -1,0 +1,761 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Configurable Idle Warning Dialog - Angular 18+ Demo</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            margin: 0;
+            padding: 20px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+        }
+        
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+        
+        .header {
+            background: rgba(255,255,255,0.1);
+            backdrop-filter: blur(10px);
+            color: white;
+            padding: 2rem;
+            border-radius: 16px;
+            text-align: center;
+            margin-bottom: 2rem;
+            border: 1px solid rgba(255,255,255,0.2);
+        }
+        
+        .config-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 2rem;
+            margin-bottom: 2rem;
+        }
+        
+        .config-panel {
+            background: rgba(255,255,255,0.95);
+            border-radius: 16px;
+            padding: 1.5rem;
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255,255,255,0.3);
+        }
+        
+        .demo-panel {
+            background: rgba(255,255,255,0.95);
+            border-radius: 16px;
+            padding: 1.5rem;
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255,255,255,0.3);
+        }
+        
+        .config-section {
+            margin-bottom: 1.5rem;
+            padding-bottom: 1rem;
+            border-bottom: 1px solid #e0e0e0;
+        }
+        
+        .config-section:last-child {
+            border-bottom: none;
+            margin-bottom: 0;
+        }
+        
+        .config-section h3 {
+            margin: 0 0 1rem 0;
+            color: #2c3e50;
+            font-size: 1.1rem;
+        }
+        
+        .form-group {
+            margin-bottom: 1rem;
+        }
+        
+        .form-group label {
+            display: block;
+            margin-bottom: 0.5rem;
+            font-weight: 500;
+            color: #495057;
+        }
+        
+        .form-group input,
+        .form-group select,
+        .form-group textarea {
+            width: 100%;
+            padding: 0.5rem;
+            border: 1px solid #ddd;
+            border-radius: 6px;
+            font-size: 0.9rem;
+        }
+        
+        .form-group textarea {
+            resize: vertical;
+            min-height: 60px;
+        }
+        
+        .checkbox-group {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+        
+        .checkbox-group input[type="checkbox"] {
+            width: auto;
+        }
+        
+        .btn {
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 1rem;
+            font-weight: 500;
+            transition: all 0.3s ease;
+            margin: 0.5rem;
+            display: inline-block;
+        }
+        
+        .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 25px rgba(102, 126, 234, 0.3);
+        }
+        
+        .btn-secondary {
+            background: linear-gradient(135deg, #a8edea, #fed6e3);
+            color: #2d3436;
+        }
+        
+        .btn-danger {
+            background: linear-gradient(135deg, #fd79a8, #fdcb6e);
+            color: white;
+        }
+        
+        .status-display {
+            text-align: center;
+            padding: 2rem;
+            margin: 1rem 0;
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            color: white;
+            border-radius: 12px;
+            font-size: 1.5rem;
+            font-weight: bold;
+        }
+        
+        .config-preview {
+            background: #f8f9fa;
+            padding: 1rem;
+            border-radius: 8px;
+            border: 1px solid #e9ecef;
+            font-family: 'Monaco', 'Menlo', 'Consolas', monospace;
+            font-size: 0.8rem;
+            overflow-x: auto;
+            margin-top: 1rem;
+        }
+        
+        /* Dialog Styles - Simulating Angular Component */
+        .demo-dialog-backdrop {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 1000;
+            animation: fadeIn 0.3s ease-out;
+        }
+        
+        .demo-dialog-backdrop.theme-default {
+            background-color: rgba(0, 0, 0, 0.5);
+        }
+        
+        .demo-dialog-backdrop.theme-dark {
+            background-color: rgba(0, 0, 0, 0.8);
+        }
+        
+        .demo-dialog-backdrop.theme-minimal {
+            background-color: rgba(0, 0, 0, 0.3);
+        }
+        
+        .demo-dialog {
+            background: white;
+            border-radius: 8px;
+            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.3);
+            width: 90%;
+            max-height: 90vh;
+            overflow-y: auto;
+            animation: slideIn 0.3s ease-out;
+        }
+        
+        .demo-dialog.size-small { max-width: 400px; }
+        .demo-dialog.size-medium { max-width: 500px; }
+        .demo-dialog.size-large { max-width: 600px; }
+        
+        .demo-dialog.theme-dark {
+            background: #2d3748;
+            color: #e2e8f0;
+        }
+        
+        .demo-dialog.theme-minimal {
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+            border: 1px solid #e2e8f0;
+        }
+        
+        .demo-dialog-header {
+            padding: 20px 20px 10px;
+            border-bottom: 1px solid #e0e0e0;
+        }
+        
+        .demo-dialog.theme-dark .demo-dialog-header {
+            border-bottom-color: #4a5568;
+        }
+        
+        .demo-dialog.theme-minimal .demo-dialog-header {
+            padding: 15px 20px 10px;
+        }
+        
+        .demo-dialog-header h2 {
+            margin: 0;
+            font-size: 1.5rem;
+            color: #333;
+            text-align: center;
+        }
+        
+        .demo-dialog.theme-dark .demo-dialog-header h2 {
+            color: #e2e8f0;
+        }
+        
+        .demo-dialog-body {
+            padding: 20px;
+            text-align: center;
+        }
+        
+        .demo-dialog-body p {
+            margin: 0 0 20px;
+            font-size: 1rem;
+            color: #666;
+            line-height: 1.5;
+        }
+        
+        .demo-dialog.theme-dark .demo-dialog-body p {
+            color: #a0aec0;
+        }
+        
+        .demo-countdown {
+            margin: 20px 0;
+            padding: 15px;
+            background-color: #f8f9fa;
+            border-radius: 6px;
+            border-left: 4px solid #ffc107;
+        }
+        
+        .demo-dialog.theme-dark .demo-countdown {
+            background-color: #4a5568;
+            border-left-color: #ed8936;
+        }
+        
+        .countdown-label {
+            display: block;
+            font-size: 0.9rem;
+            color: #666;
+            margin-bottom: 5px;
+        }
+        
+        .demo-dialog.theme-dark .countdown-label {
+            color: #a0aec0;
+        }
+        
+        .countdown-time {
+            font-size: 2rem;
+            font-weight: bold;
+            color: #dc3545;
+            font-family: 'Courier New', monospace;
+        }
+        
+        .demo-progress {
+            width: 100%;
+            height: 6px;
+            background-color: #e9ecef;
+            border-radius: 3px;
+            overflow: hidden;
+            margin: 15px 0;
+        }
+        
+        .progress-bar {
+            height: 100%;
+            background-color: #dc3545;
+            transition: width 1s linear;
+        }
+        
+        .demo-dialog.theme-dark .progress-bar {
+            background-color: #e53e3e;
+        }
+        
+        .demo-dialog-actions {
+            padding: 20px;
+            display: flex;
+            gap: 10px;
+            justify-content: center;
+            border-top: 1px solid #e0e0e0;
+        }
+        
+        .demo-dialog.theme-dark .demo-dialog-actions {
+            border-top-color: #4a5568;
+        }
+        
+        .demo-dialog.theme-minimal .demo-dialog-actions {
+            padding: 15px 20px;
+        }
+        
+        .dialog-btn {
+            padding: 12px 24px;
+            border: none;
+            border-radius: 6px;
+            font-size: 1rem;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            min-width: 120px;
+        }
+        
+        .dialog-btn-primary {
+            background-color: #007bff;
+            color: white;
+        }
+        
+        .dialog-btn-primary:hover {
+            background-color: #0056b3;
+            transform: translateY(-1px);
+        }
+        
+        .dialog-btn-secondary {
+            background-color: #6c757d;
+            color: white;
+        }
+        
+        .dialog-btn-secondary:hover {
+            background-color: #545b62;
+            transform: translateY(-1px);
+        }
+        
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+        
+        @keyframes slideIn {
+            from { 
+                opacity: 0;
+                transform: translateY(-20px) scale(0.95);
+            }
+            to { 
+                opacity: 1;
+                transform: translateY(0) scale(1);
+            }
+        }
+        
+        @media (max-width: 768px) {
+            .config-grid {
+                grid-template-columns: 1fr;
+            }
+            
+            .demo-dialog {
+                width: 95%;
+                margin: 20px;
+            }
+            
+            .demo-dialog-actions {
+                flex-direction: column;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🎛️ Configurable Idle Warning Dialog</h1>
+            <p>Customize every aspect of the Angular 18+ OAuth idle detection dialog</p>
+        </div>
+        
+        <div class="config-grid">
+            <!-- Configuration Panel -->
+            <div class="config-panel">
+                <h2>🔧 Dialog Configuration</h2>
+                
+                <div class="config-section">
+                    <h3>Text Content</h3>
+                    <div class="form-group">
+                        <label for="dialogTitle">Dialog Title:</label>
+                        <input type="text" id="dialogTitle" value="Session Timeout Warning">
+                    </div>
+                    <div class="form-group">
+                        <label for="dialogMessage">Dialog Message:</label>
+                        <textarea id="dialogMessage">Your session will expire soon due to inactivity.</textarea>
+                    </div>
+                    <div class="form-group">
+                        <label for="extendButton">Extend Button Text:</label>
+                        <input type="text" id="extendButton" value="Stay Logged In">
+                    </div>
+                    <div class="form-group">
+                        <label for="logoutButton">Logout Button Text:</label>
+                        <input type="text" id="logoutButton" value="Logout Now">
+                    </div>
+                </div>
+                
+                <div class="config-section">
+                    <h3>Appearance</h3>
+                    <div class="form-group">
+                        <label for="theme">Theme:</label>
+                        <select id="theme">
+                            <option value="default">Default</option>
+                            <option value="dark">Dark</option>
+                            <option value="minimal">Minimal</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label for="size">Size:</label>
+                        <select id="size">
+                            <option value="small">Small</option>
+                            <option value="medium" selected>Medium</option>
+                            <option value="large">Large</option>
+                        </select>
+                    </div>
+                </div>
+                
+                <div class="config-section">
+                    <h3>Features</h3>
+                    <div class="form-group">
+                        <div class="checkbox-group">
+                            <input type="checkbox" id="showProgress" checked>
+                            <label for="showProgress">Show Progress Bar</label>
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <div class="checkbox-group">
+                            <input type="checkbox" id="showCountdown" checked>
+                            <label for="showCountdown">Show Countdown Timer</label>
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <div class="checkbox-group">
+                            <input type="checkbox" id="autoClose">
+                            <label for="autoClose">Auto-close on Timeout</label>
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <div class="checkbox-group">
+                            <input type="checkbox" id="backdropClose">
+                            <label for="backdropClose">Close on Backdrop Click</label>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="config-section">
+                    <h3>Generated Configuration</h3>
+                    <div class="config-preview" id="configPreview">
+                        <!-- Config will be generated here -->
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Demo Panel -->
+            <div class="demo-panel">
+                <h2>🎭 Live Preview</h2>
+                
+                <div class="status-display" id="statusDisplay">
+                    Ready to Test
+                </div>
+                
+                <div style="text-align: center;">
+                    <button class="btn" onclick="showDialog()">🚀 Show Dialog</button>
+                    <button class="btn btn-secondary" onclick="updateConfig()">🔄 Update Config</button>
+                    <button class="btn btn-danger" onclick="resetConfig()">🔄 Reset to Defaults</button>
+                </div>
+                
+                <div style="margin-top: 2rem;">
+                    <h3>🎯 Usage Examples</h3>
+                    
+                    <h4>Component Template:</h4>
+                    <div class="config-preview">
+&lt;idle-warning-dialog
+  *ngIf="showWarning()"
+  dialogTitle="<span id="titlePreview">Session Timeout Warning</span>"
+  dialogMessage="<span id="messagePreview">Your session will expire soon due to inactivity.</span>"
+  extendButtonLabel="<span id="extendPreview">Stay Logged In</span>"
+  logoutButtonLabel="<span id="logoutPreview">Logout Now</span>"
+  theme="<span id="themePreview">default</span>"
+  size="<span id="sizePreview">medium</span>"
+  [showProgressBar]="<span id="progressPreview">true</span>"
+  [showCountdown]="<span id="countdownPreview">true</span>"
+  [autoClose]="<span id="autoClosePreview">false</span>"
+  [backdropClose]="<span id="backdropPreview">false</span>"&gt;
+&lt;/idle-warning-dialog&gt;
+                    </div>
+                    
+                    <h4>Global Configuration:</h4>
+                    <div class="config-preview">
+provideIdleOAuth({
+  warningDialogConfig: {
+    title: "<span id="configTitlePreview">Session Timeout Warning</span>",
+    message: "<span id="configMessagePreview">Your session will expire soon due to inactivity.</span>",
+    theme: "<span id="configThemePreview">default</span>",
+    size: "<span id="configSizePreview">medium</span>",
+    showProgressBar: <span id="configProgressPreview">true</span>,
+    showCountdown: <span id="configCountdownPreview">true</span>
+  }
+})
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Demo Dialog -->
+    <div id="demoDialog" class="demo-dialog-backdrop theme-default" style="display: none;" onclick="closeDialog(event)">
+        <div class="demo-dialog size-medium theme-default" onclick="event.stopPropagation()">
+            <div class="demo-dialog-header">
+                <h2 id="dialogTitleDisplay">Session Timeout Warning</h2>
+            </div>
+            
+            <div class="demo-dialog-body">
+                <p id="dialogMessageDisplay">Your session will expire soon due to inactivity.</p>
+                
+                <div id="countdownSection" class="demo-countdown">
+                    <span class="countdown-label">Time remaining:</span>
+                    <span class="countdown-time" id="countdownDisplay">02:00</span>
+                </div>
+                
+                <div id="progressSection" class="demo-progress">
+                    <div class="progress-bar" id="progressBar" style="width: 100%"></div>
+                </div>
+            </div>
+            
+            <div class="demo-dialog-actions">
+                <button type="button" class="dialog-btn dialog-btn-primary" onclick="extendSession()">
+                    <span id="extendButtonDisplay">Stay Logged In</span>
+                </button>
+                <button type="button" class="dialog-btn dialog-btn-secondary" onclick="logoutSession()">
+                    <span id="logoutButtonDisplay">Logout Now</span>
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let countdownTimer = null;
+        let remainingTime = 120; // 2 minutes in seconds
+        
+        function updateConfig() {
+            const title = document.getElementById('dialogTitle').value;
+            const message = document.getElementById('dialogMessage').value;
+            const extendButton = document.getElementById('extendButton').value;
+            const logoutButton = document.getElementById('logoutButton').value;
+            const theme = document.getElementById('theme').value;
+            const size = document.getElementById('size').value;
+            const showProgress = document.getElementById('showProgress').checked;
+            const showCountdown = document.getElementById('showCountdown').checked;
+            const autoClose = document.getElementById('autoClose').checked;
+            const backdropClose = document.getElementById('backdropClose').checked;
+            
+            // Update config preview
+            const config = {
+                dialogTitle: title,
+                dialogMessage: message,
+                extendButtonLabel: extendButton,
+                logoutButtonLabel: logoutButton,
+                theme: theme,
+                size: size,
+                showProgressBar: showProgress,
+                showCountdown: showCountdown,
+                autoClose: autoClose,
+                backdropClose: backdropClose
+            };
+            
+            document.getElementById('configPreview').innerHTML = `
+<span style="color: #008000;">// Angular Component Configuration</span>
+&lt;idle-warning-dialog
+  dialogTitle="${title}"
+  dialogMessage="${message}"
+  extendButtonLabel="${extendButton}"
+  logoutButtonLabel="${logoutButton}"
+  theme="${theme}"
+  size="${size}"
+  [showProgressBar]="${showProgress}"
+  [showCountdown]="${showCountdown}"
+  [autoClose]="${autoClose}"
+  [backdropClose]="${backdropClose}"&gt;
+&lt;/idle-warning-dialog&gt;
+
+<span style="color: #008000;">// Global Service Configuration</span>
+provideIdleOAuth({
+  warningDialogConfig: {
+    title: "${title}",
+    message: "${message}",
+    extendButtonLabel: "${extendButton}",
+    logoutButtonLabel: "${logoutButton}",
+    theme: "${theme}",
+    size: "${size}",
+    showProgressBar: ${showProgress},
+    showCountdown: ${showCountdown},
+    autoClose: ${autoClose},
+    backdropClose: ${backdropClose}
+  }
+})`;
+            
+            // Update preview elements
+            document.getElementById('titlePreview').textContent = title;
+            document.getElementById('messagePreview').textContent = message;
+            document.getElementById('extendPreview').textContent = extendButton;
+            document.getElementById('logoutPreview').textContent = logoutButton;
+            document.getElementById('themePreview').textContent = theme;
+            document.getElementById('sizePreview').textContent = size;
+            document.getElementById('progressPreview').textContent = showProgress;
+            document.getElementById('countdownPreview').textContent = showCountdown;
+            document.getElementById('autoClosePreview').textContent = autoClose;
+            document.getElementById('backdropPreview').textContent = backdropClose;
+            
+            // Update config preview
+            document.getElementById('configTitlePreview').textContent = title;
+            document.getElementById('configMessagePreview').textContent = message;
+            document.getElementById('configThemePreview').textContent = theme;
+            document.getElementById('configSizePreview').textContent = size;
+            document.getElementById('configProgressPreview').textContent = showProgress;
+            document.getElementById('configCountdownPreview').textContent = showCountdown;
+            
+            document.getElementById('statusDisplay').textContent = '✅ Configuration Updated';
+            setTimeout(() => {
+                document.getElementById('statusDisplay').textContent = 'Ready to Test';
+            }, 2000);
+        }
+        
+        function resetConfig() {
+            document.getElementById('dialogTitle').value = 'Session Timeout Warning';
+            document.getElementById('dialogMessage').value = 'Your session will expire soon due to inactivity.';
+            document.getElementById('extendButton').value = 'Stay Logged In';
+            document.getElementById('logoutButton').value = 'Logout Now';
+            document.getElementById('theme').value = 'default';
+            document.getElementById('size').value = 'medium';
+            document.getElementById('showProgress').checked = true;
+            document.getElementById('showCountdown').checked = true;
+            document.getElementById('autoClose').checked = false;
+            document.getElementById('backdropClose').checked = false;
+            
+            updateConfig();
+        }
+        
+        function showDialog() {
+            // Apply current configuration to dialog
+            const title = document.getElementById('dialogTitle').value;
+            const message = document.getElementById('dialogMessage').value;
+            const extendButton = document.getElementById('extendButton').value;
+            const logoutButton = document.getElementById('logoutButton').value;
+            const theme = document.getElementById('theme').value;
+            const size = document.getElementById('size').value;
+            const showProgress = document.getElementById('showProgress').checked;
+            const showCountdown = document.getElementById('showCountdown').checked;
+            const backdropClose = document.getElementById('backdropClose').checked;
+            
+            // Update dialog content
+            document.getElementById('dialogTitleDisplay').textContent = title;
+            document.getElementById('dialogMessageDisplay').textContent = message;
+            document.getElementById('extendButtonDisplay').textContent = extendButton;
+            document.getElementById('logoutButtonDisplay').textContent = logoutButton;
+            
+            // Update dialog classes
+            const dialog = document.querySelector('.demo-dialog');
+            const backdrop = document.querySelector('.demo-dialog-backdrop');
+            
+            dialog.className = `demo-dialog size-${size} theme-${theme}`;
+            backdrop.className = `demo-dialog-backdrop theme-${theme}`;
+            
+            // Show/hide elements
+            document.getElementById('progressSection').style.display = showProgress ? 'block' : 'none';
+            document.getElementById('countdownSection').style.display = showCountdown ? 'block' : 'none';
+            
+            // Set backdrop close behavior
+            backdrop.onclick = backdropClose ? closeDialog : null;
+            
+            // Show dialog
+            document.getElementById('demoDialog').style.display = 'flex';
+            
+            // Start countdown
+            remainingTime = 120;
+            startCountdown();
+        }
+        
+        function closeDialog(event) {
+            if (event && event.target === event.currentTarget) {
+                document.getElementById('demoDialog').style.display = 'none';
+                if (countdownTimer) {
+                    clearInterval(countdownTimer);
+                }
+            }
+        }
+        
+        function startCountdown() {
+            if (countdownTimer) {
+                clearInterval(countdownTimer);
+            }
+            
+            countdownTimer = setInterval(() => {
+                remainingTime--;
+                
+                const mins = Math.floor(remainingTime / 60);
+                const secs = remainingTime % 60;
+                const timeStr = `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+                
+                document.getElementById('countdownDisplay').textContent = timeStr;
+                
+                const percentage = (remainingTime / 120) * 100;
+                document.getElementById('progressBar').style.width = percentage + '%';
+                
+                if (remainingTime <= 0) {
+                    clearInterval(countdownTimer);
+                    
+                    if (document.getElementById('autoClose').checked) {
+                        logoutSession();
+                    }
+                }
+            }, 1000);
+        }
+        
+        function extendSession() {
+            document.getElementById('demoDialog').style.display = 'none';
+            document.getElementById('statusDisplay').textContent = '✅ Session Extended';
+            
+            if (countdownTimer) {
+                clearInterval(countdownTimer);
+            }
+            
+            setTimeout(() => {
+                document.getElementById('statusDisplay').textContent = 'Ready to Test';
+            }, 2000);
+        }
+        
+        function logoutSession() {
+            document.getElementById('demoDialog').style.display = 'none';
+            document.getElementById('statusDisplay').textContent = '🚪 Logged Out';
+            
+            if (countdownTimer) {
+                clearInterval(countdownTimer);
+            }
+            
+            setTimeout(() => {
+                document.getElementById('statusDisplay').textContent = 'Ready to Test';
+            }, 2000);
+        }
+        
+        // Initialize
+        window.addEventListener('load', () => {
+            updateConfig();
+            console.log('🎛️ Configurable Idle Warning Dialog Demo loaded');
+            console.log('✨ Customize the dialog and click "Show Dialog" to see your changes');
+        });
+    </script>
+</body>
+</html>

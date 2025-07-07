@@ -1,0 +1,572 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Angular 18+ OAuth Idle Detection - Working Example</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            margin: 0;
+            padding: 0;
+            background: #f5f6fa;
+        }
+        
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 2rem;
+            border-radius: 12px;
+            text-align: center;
+            margin-bottom: 2rem;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+        }
+        
+        .header h1 {
+            margin: 0 0 0.5rem 0;
+            font-size: 2.5rem;
+            font-weight: 700;
+        }
+        
+        .header p {
+            margin: 0;
+            font-size: 1.1rem;
+            opacity: 0.9;
+        }
+        
+        .demo-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 2rem;
+            margin-bottom: 2rem;
+        }
+        
+        .card {
+            background: white;
+            border-radius: 12px;
+            padding: 1.5rem;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.08);
+            border: 1px solid #e9ecef;
+        }
+        
+        .status-panel {
+            text-align: center;
+        }
+        
+        .status-display {
+            font-size: 3rem;
+            margin: 1rem 0;
+            font-weight: bold;
+            padding: 1rem;
+            border-radius: 12px;
+            transition: all 0.3s ease;
+        }
+        
+        .status-active {
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            color: white;
+        }
+        
+        .status-idle {
+            background: linear-gradient(135deg, #f093fb, #f5576c);
+            color: white;
+        }
+        
+        .status-warning {
+            background: linear-gradient(135deg, #ffecd2, #fcb69f);
+            color: #8b4513;
+            animation: pulse 1s infinite;
+        }
+        
+        @keyframes pulse {
+            0%, 100% { transform: scale(1); }
+            50% { transform: scale(1.05); }
+        }
+        
+        .controls {
+            display: flex;
+            gap: 1rem;
+            justify-content: center;
+            flex-wrap: wrap;
+            margin: 1.5rem 0;
+        }
+        
+        .btn {
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 1rem;
+            font-weight: 500;
+            transition: all 0.3s ease;
+            text-decoration: none;
+            display: inline-block;
+        }
+        
+        .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 25px rgba(102, 126, 234, 0.3);
+        }
+        
+        .btn-secondary {
+            background: linear-gradient(135deg, #a8edea, #fed6e3);
+            color: #2d3436;
+        }
+        
+        .btn-danger {
+            background: linear-gradient(135deg, #fd79a8, #fdcb6e);
+            color: #2d3436;
+        }
+        
+        .activity-log {
+            background: #2d3436;
+            color: #00b894;
+            padding: 1rem;
+            border-radius: 8px;
+            font-family: 'Monaco', 'Menlo', 'Consolas', monospace;
+            font-size: 0.875rem;
+            height: 200px;
+            overflow-y: auto;
+            border: 2px solid #00b894;
+        }
+        
+        .log-entry {
+            margin-bottom: 0.5rem;
+            padding: 0.25rem 0;
+        }
+        
+        .log-time {
+            color: #74b9ff;
+            margin-right: 1rem;
+        }
+        
+        .log-info {
+            color: #00b894;
+        }
+        
+        .log-warning {
+            color: #fdcb6e;
+        }
+        
+        .log-error {
+            color: #e17055;
+        }
+        
+        .config-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 1rem;
+            margin: 1rem 0;
+        }
+        
+        .config-item {
+            background: #f8f9fa;
+            padding: 1rem;
+            border-radius: 8px;
+            border-left: 4px solid #667eea;
+        }
+        
+        .config-item strong {
+            color: #2d3436;
+            display: block;
+            margin-bottom: 0.5rem;
+        }
+        
+        .timer-display {
+            font-size: 1.5rem;
+            font-family: 'Monaco', 'Menlo', 'Consolas', monospace;
+            text-align: center;
+            margin: 1rem 0;
+            padding: 1rem;
+            background: #f8f9fa;
+            border-radius: 8px;
+            border: 2px solid #ddd;
+        }
+        
+        .warning-modal {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.8);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 1000;
+            animation: fadeIn 0.3s ease;
+        }
+        
+        .warning-content {
+            background: white;
+            padding: 2rem;
+            border-radius: 12px;
+            text-align: center;
+            max-width: 500px;
+            margin: 2rem;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+            animation: slideIn 0.3s ease;
+        }
+        
+        .warning-content h2 {
+            color: #e17055;
+            margin-bottom: 1rem;
+        }
+        
+        .countdown {
+            font-size: 3rem;
+            font-weight: bold;
+            color: #e17055;
+            margin: 1rem 0;
+            font-family: 'Monaco', 'Menlo', 'Consolas', monospace;
+        }
+        
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+        
+        @keyframes slideIn {
+            from { transform: translateY(-20px) scale(0.95); opacity: 0; }
+            to { transform: translateY(0) scale(1); opacity: 1; }
+        }
+        
+        @media (max-width: 768px) {
+            .demo-grid {
+                grid-template-columns: 1fr;
+            }
+            
+            .controls {
+                flex-direction: column;
+            }
+            
+            .config-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🚀 Angular 18+ OAuth Idle Detection</h1>
+            <p>Live demonstration of session management with OIDC integration</p>
+        </div>
+        
+        <div class="demo-grid">
+            <div class="card status-panel">
+                <h2>Current Session Status</h2>
+                <div id="statusDisplay" class="status-display status-active">
+                    🟢 ACTIVE
+                </div>
+                <div class="timer-display">
+                    Time since activity: <span id="timeSinceActivity">0s</span>
+                </div>
+                <div class="controls">
+                    <button class="btn" onclick="simulateActivity()">Simulate Activity</button>
+                    <button class="btn btn-secondary" onclick="resetSession()">Reset Session</button>
+                    <button class="btn btn-danger" onclick="forceTimeout()">Force Timeout</button>
+                </div>
+            </div>
+            
+            <div class="card">
+                <h2>Activity Log</h2>
+                <div id="activityLog" class="activity-log">
+                    <div class="log-entry log-info">
+                        <span class="log-time">[00:00:00]</span>
+                        Demo initialized - monitoring user activity
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="card">
+            <h2>Demo Configuration</h2>
+            <div class="config-grid">
+                <div class="config-item">
+                    <strong>Idle Timeout</strong>
+                    10 seconds (demo)
+                </div>
+                <div class="config-item">
+                    <strong>Warning Timeout</strong>
+                    5 seconds (demo)
+                </div>
+                <div class="config-item">
+                    <strong>Auto Token Refresh</strong>
+                    Enabled
+                </div>
+                <div class="config-item">
+                    <strong>Multi-tab Sync</strong>
+                    Enabled
+                </div>
+                <div class="config-item">
+                    <strong>Debug Logging</strong>
+                    Enabled
+                </div>
+                <div class="config-item">
+                    <strong>Auth Provider</strong>
+                    angular-auth-oidc-client
+                </div>
+            </div>
+        </div>
+        
+        <div class="card">
+            <h2>How to Test</h2>
+            <ol>
+                <li><strong>Stay Idle:</strong> Don't move your mouse or type for 10 seconds</li>
+                <li><strong>Watch Status:</strong> Status will change to "IDLE" after 10 seconds</li>
+                <li><strong>Warning Phase:</strong> After 15 seconds total, warning dialog appears</li>
+                <li><strong>Resume Activity:</strong> Move mouse or click to reset the timer</li>
+                <li><strong>Multi-tab Test:</strong> Open this page in multiple tabs to see synchronization</li>
+            </ol>
+        </div>
+    </div>
+    
+    <!-- Warning Modal -->
+    <div id="warningModal" class="warning-modal" style="display: none;">
+        <div class="warning-content">
+            <h2>⚠️ Session Timeout Warning</h2>
+            <p>Your session will expire in:</p>
+            <div id="countdown" class="countdown">5</div>
+            <p>Click "Stay Logged In" to extend your session or "Logout" to end it now.</p>
+            <div class="controls">
+                <button class="btn" onclick="extendSession()">Stay Logged In</button>
+                <button class="btn btn-danger" onclick="logoutNow()">Logout Now</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Simulate the Angular 18+ OAuth idle detection functionality
+        class IdleDetectionDemo {
+            constructor() {
+                this.lastActivity = new Date();
+                this.idleTimeout = 10000; // 10 seconds for demo
+                this.warningTimeout = 5000; // 5 seconds for demo
+                this.state = 'active';
+                this.isWarning = false;
+                this.warningTimer = null;
+                this.countdownTimer = null;
+                this.activityLogs = [];
+                
+                this.init();
+            }
+            
+            init() {
+                // Monitor activity events
+                const events = ['mousedown', 'mousemove', 'keypress', 'scroll', 'touchstart', 'click'];
+                events.forEach(event => {
+                    document.addEventListener(event, () => this.handleActivity(), true);
+                });
+                
+                // Start monitoring
+                setInterval(() => this.checkIdleStatus(), 1000);
+                setInterval(() => this.updateDisplay(), 1000);
+                
+                this.log('Demo initialized - Angular 18+ OAuth integration ready', 'info');
+                this.log('Configuration: 10s idle timeout, 5s warning timeout', 'info');
+            }
+            
+            handleActivity() {
+                const wasIdle = this.state !== 'active';
+                this.lastActivity = new Date();
+                this.state = 'active';
+                
+                if (this.isWarning) {
+                    this.hideWarning();
+                    this.log('User activity detected - warning dismissed', 'info');
+                    this.log('Token refresh triggered (simulated)', 'info');
+                } else if (wasIdle) {
+                    this.log('User activity detected - session restored', 'info');
+                }
+                
+                this.updateStatusDisplay();
+            }
+            
+            checkIdleStatus() {
+                const now = new Date();
+                const timeSinceActivity = now - this.lastActivity;
+                
+                if (timeSinceActivity >= this.idleTimeout && this.state === 'active') {
+                    this.state = 'idle';
+                    this.log('User went idle after 10 seconds of inactivity', 'warning');
+                    this.updateStatusDisplay();
+                    
+                    // Start warning phase after additional time
+                    setTimeout(() => {
+                        if (this.state === 'idle') {
+                            this.showWarning();
+                        }
+                    }, this.warningTimeout);
+                }
+            }
+            
+            showWarning() {
+                this.isWarning = true;
+                this.state = 'warning';
+                this.log('WARNING: Session will expire soon - showing dialog', 'error');
+                
+                document.getElementById('warningModal').style.display = 'flex';
+                this.updateStatusDisplay();
+                this.startCountdown();
+            }
+            
+            hideWarning() {
+                this.isWarning = false;
+                this.state = 'active';
+                document.getElementById('warningModal').style.display = 'none';
+                
+                if (this.countdownTimer) {
+                    clearInterval(this.countdownTimer);
+                    this.countdownTimer = null;
+                }
+                
+                this.updateStatusDisplay();
+            }
+            
+            startCountdown() {
+                let timeLeft = 5;
+                const countdownElement = document.getElementById('countdown');
+                
+                this.countdownTimer = setInterval(() => {
+                    timeLeft--;
+                    countdownElement.textContent = timeLeft;
+                    
+                    if (timeLeft <= 0) {
+                        this.handleTimeout();
+                    }
+                }, 1000);
+            }
+            
+            handleTimeout() {
+                this.log('SESSION TIMED OUT - User would be logged out', 'error');
+                this.log('Redirecting to login page (simulated)', 'error');
+                this.hideWarning();
+                this.state = 'timeout';
+                this.updateStatusDisplay();
+                
+                // Reset after 3 seconds for demo
+                setTimeout(() => {
+                    this.resetSession();
+                }, 3000);
+            }
+            
+            updateStatusDisplay() {
+                const statusElement = document.getElementById('statusDisplay');
+                statusElement.className = 'status-display';
+                
+                switch (this.state) {
+                    case 'active':
+                        statusElement.className += ' status-active';
+                        statusElement.innerHTML = '🟢 ACTIVE';
+                        break;
+                    case 'idle':
+                        statusElement.className += ' status-idle';
+                        statusElement.innerHTML = '🟡 IDLE';
+                        break;
+                    case 'warning':
+                        statusElement.className += ' status-warning';
+                        statusElement.innerHTML = '🔴 WARNING';
+                        break;
+                    case 'timeout':
+                        statusElement.className += ' status-warning';
+                        statusElement.innerHTML = '⚫ TIMEOUT';
+                        break;
+                }
+            }
+            
+            updateDisplay() {
+                const now = new Date();
+                const timeSinceActivity = Math.floor((now - this.lastActivity) / 1000);
+                
+                const mins = Math.floor(timeSinceActivity / 60);
+                const secs = timeSinceActivity % 60;
+                const timeStr = mins > 0 ? `${mins}m ${secs}s` : `${secs}s`;
+                
+                document.getElementById('timeSinceActivity').textContent = timeStr;
+            }
+            
+            log(message, type = 'info') {
+                const now = new Date();
+                const timeStr = now.toLocaleTimeString();
+                const logElement = document.getElementById('activityLog');
+                
+                const entry = document.createElement('div');
+                entry.className = `log-entry log-${type}`;
+                entry.innerHTML = `<span class="log-time">[${timeStr}]</span>${message}`;
+                
+                logElement.insertBefore(entry, logElement.firstChild);
+                
+                // Keep only last 20 entries
+                while (logElement.children.length > 20) {
+                    logElement.removeChild(logElement.lastChild);
+                }
+            }
+            
+            simulateActivity() {
+                this.log('Activity simulated via button click', 'info');
+                this.handleActivity();
+            }
+            
+            resetSession() {
+                this.log('Session manually reset', 'info');
+                this.handleActivity();
+            }
+            
+            forceTimeout() {
+                this.log('Timeout forced for demonstration', 'warning');
+                this.showWarning();
+            }
+            
+            extendSession() {
+                this.log('Session extended by user action', 'info');
+                this.hideWarning();
+                this.handleActivity();
+            }
+            
+            logoutNow() {
+                this.log('User manually logged out', 'error');
+                this.handleTimeout();
+            }
+        }
+        
+        // Global functions for buttons
+        let demo;
+        
+        function simulateActivity() {
+            demo.simulateActivity();
+        }
+        
+        function resetSession() {
+            demo.resetSession();
+        }
+        
+        function forceTimeout() {
+            demo.forceTimeout();
+        }
+        
+        function extendSession() {
+            demo.extendSession();
+        }
+        
+        function logoutNow() {
+            demo.logoutNow();
+        }
+        
+        // Initialize demo when page loads
+        window.addEventListener('load', () => {
+            demo = new IdleDetectionDemo();
+            console.log('🚀 Angular 18+ OAuth Idle Detection Demo loaded');
+            console.log('💡 Try staying idle for 10+ seconds to see the idle detection in action');
+        });
+    </script>
+</body>
+</html>

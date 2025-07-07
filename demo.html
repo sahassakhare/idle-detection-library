@@ -1,0 +1,266 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Idle Detection Demo</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        .status {
+            padding: 10px;
+            margin: 10px 0;
+            border-radius: 5px;
+            font-weight: bold;
+        }
+        .active { background-color: #d4edda; color: #155724; }
+        .idle { background-color: #f8d7da; color: #721c24; }
+        .warning { background-color: #fff3cd; color: #856404; }
+        .modal-backdrop {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0,0,0,0.5);
+            z-index: 1000;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .modal-content {
+            background: white;
+            padding: 30px;
+            border-radius: 10px;
+            text-align: center;
+            box-shadow: 0 4px 8px rgba(0,0,0,0.3);
+        }
+        .modal-content button {
+            margin: 10px;
+            padding: 10px 20px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+        }
+        .modal-content button:first-of-type {
+            background-color: #007bff;
+            color: white;
+        }
+        .modal-content button:last-of-type {
+            background-color: #dc3545;
+            color: white;
+        }
+    </style>
+</head>
+<body>
+    <h1>Idle Detection Demo</h1>
+    <p>This demo shows the idle detection library in action. It's configured for a short timeout to demonstrate quickly:</p>
+    <ul>
+        <li>Idle timeout: 10 seconds</li>
+        <li>Warning timeout: 5 seconds</li>
+    </ul>
+    <div id="status" class="status active">Status: Active</div>
+    <div id="log"></div>
+
+    <script>
+        // Simple implementation of the idle detection library for demo purposes
+        class IdleDetector {
+            constructor(config = {}) {
+                this.idleTimeout = config.idleTimeout || 10000;
+                this.warningTimeout = config.warningTimeout || 5000;
+                this.autoResume = config.autoResume !== false;
+                this.listeners = {};
+                this.state = 'active';
+                this.lastActivity = new Date();
+                this.idleTimer = null;
+                this.warningTimer = null;
+                this.isWatching = false;
+                this.boundActivityHandler = this.handleActivity.bind(this);
+            }
+
+            on(event, listener) {
+                if (!this.listeners[event]) {
+                    this.listeners[event] = [];
+                }
+                this.listeners[event].push(listener);
+            }
+
+            emit(event, data) {
+                if (this.listeners[event]) {
+                    this.listeners[event].forEach(listener => listener(event, data));
+                }
+            }
+
+            handleActivity() {
+                this.lastActivity = new Date();
+                if (this.state !== 'active') {
+                    this.state = 'active';
+                    this.emit('interrupt', { state: this.state, lastActivity: this.lastActivity });
+                }
+                this.resetTimers();
+            }
+
+            resetTimers() {
+                if (this.idleTimer) clearTimeout(this.idleTimer);
+                if (this.warningTimer) clearTimeout(this.warningTimer);
+                
+                this.idleTimer = setTimeout(() => {
+                    this.state = 'idle';
+                    this.emit('idle_start', { state: this.state, lastActivity: this.lastActivity });
+                    
+                    this.warningTimer = setTimeout(() => {
+                        this.state = 'warning';
+                        this.emit('warning_start', { state: this.state, lastActivity: this.lastActivity });
+                        
+                        setTimeout(() => {
+                            this.state = 'timeout';
+                            this.emit('timeout', { state: this.state, lastActivity: this.lastActivity });
+                        }, this.warningTimeout);
+                    }, this.idleTimeout - this.warningTimeout);
+                }, this.idleTimeout - this.warningTimeout);
+            }
+
+            watch() {
+                if (this.isWatching) return;
+                this.isWatching = true;
+                
+                const events = ['mousedown', 'mousemove', 'keypress', 'scroll', 'touchstart', 'click'];
+                events.forEach(event => {
+                    document.addEventListener(event, this.boundActivityHandler, true);
+                });
+                
+                this.resetTimers();
+            }
+
+            stop() {
+                if (!this.isWatching) return;
+                this.isWatching = false;
+                
+                const events = ['mousedown', 'mousemove', 'keypress', 'scroll', 'touchstart', 'click'];
+                events.forEach(event => {
+                    document.removeEventListener(event, this.boundActivityHandler, true);
+                });
+                
+                if (this.idleTimer) clearTimeout(this.idleTimer);
+                if (this.warningTimer) clearTimeout(this.warningTimer);
+            }
+
+            reset() {
+                this.handleActivity();
+            }
+        }
+
+        // Initialize the idle detector
+        const idle = new IdleDetector({
+            idleTimeout: 10000,    // 10 seconds
+            warningTimeout: 5000,  // 5 seconds
+            autoResume: true
+        });
+
+        // Status display
+        const statusDiv = document.getElementById('status');
+        const logDiv = document.getElementById('log');
+
+        function updateStatus(status, message) {
+            statusDiv.className = `status ${status}`;
+            statusDiv.textContent = `Status: ${message}`;
+            
+            const logEntry = document.createElement('div');
+            logEntry.textContent = `${new Date().toLocaleTimeString()}: ${message}`;
+            logDiv.appendChild(logEntry);
+            logDiv.scrollTop = logDiv.scrollHeight;
+        }
+
+        // Event handlers
+        idle.on('idle_start', (event, state) => {
+            updateStatus('idle', 'User went idle');
+        });
+
+        idle.on('warning_start', (event, state) => {
+            updateStatus('warning', 'Warning: User will timeout soon');
+            showWarningDialog();
+        });
+
+        idle.on('interrupt', (event, state) => {
+            updateStatus('active', 'User is active again');
+            hideWarningDialog();
+        });
+
+        idle.on('timeout', (event, state) => {
+            updateStatus('idle', 'User timed out');
+            hideWarningDialog();
+            alert('Session timed out! In a real app, you would be redirected to login.');
+        });
+
+        // Warning dialog functions
+        function showWarningDialog() {
+            const dialog = document.createElement('div');
+            dialog.id = 'idle-warning-dialog';
+            dialog.innerHTML = `
+                <div class="modal-backdrop">
+                    <div class="modal-content">
+                        <h2>Session Timeout Warning</h2>
+                        <p>Your session will expire in <span id="countdown">5</span> seconds due to inactivity.</p>
+                        <button onclick="extendSession()">Stay Active</button>
+                        <button onclick="logoutNow()">Logout Now</button>
+                    </div>
+                </div>
+            `;
+            document.body.appendChild(dialog);
+            startCountdown();
+        }
+
+        function hideWarningDialog() {
+            const dialog = document.getElementById('idle-warning-dialog');
+            if (dialog) {
+                dialog.remove();
+            }
+            if (window.countdownInterval) {
+                clearInterval(window.countdownInterval);
+            }
+        }
+
+        let countdownInterval;
+
+        function startCountdown() {
+            let timeLeft = 5; // 5 seconds
+            
+            countdownInterval = setInterval(() => {
+                timeLeft--;
+                const countdownElement = document.getElementById('countdown');
+                if (countdownElement) {
+                    countdownElement.textContent = timeLeft.toString();
+                }
+                
+                if (timeLeft <= 0) {
+                    clearInterval(countdownInterval);
+                }
+            }, 1000);
+        }
+
+        // Global functions for dialog buttons
+        window.extendSession = () => {
+            idle.reset();
+            hideWarningDialog();
+        };
+
+        window.logoutNow = () => {
+            idle.stop();
+            alert('Logged out manually');
+        };
+
+        // Start monitoring
+        idle.watch();
+        updateStatus('active', 'Monitoring started - try staying idle for 10 seconds');
+
+        // Cleanup on page unload
+        window.addEventListener('beforeunload', () => {
+            idle.stop();
+        });
+    </script>
+</body>
+</html>

@@ -1,0 +1,98 @@
+# Dependencies
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Runtime data
+pids
+*.pid
+*.seed
+*.pid.lock
+
+# Coverage directory used by tools like istanbul
+coverage/
+*.lcov
+
+# nyc test coverage
+.nyc_output
+
+# Build outputs
+dist/
+build/
+*.tsbuildinfo
+
+# Environment variables
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# Logs
+logs
+*.log
+
+# Angular
+# See http://help.github.com/ignore-files/ for more about ignoring files.
+
+# Compiled output
+/dist
+/tmp
+/out-tsc
+# Only exists if Bazel was run
+/bazel-out
+
+# Angular CLI cache
+.angular/
+
+# Legacy
+**/example/dist/
+**/example/.angular/
+**/example/node_modules/
+
+# Testing
+/coverage
+/nyc_output
+
+# e2e
+/e2e/*.js
+/e2e/*.map
+
+# System files
+.DS_Store
+Thumbs.db
+
+# Local environment files
+packages/**/example/.env*
+packages/**/example/environment*.ts.local
+
+# Build artifacts
+packages/**/dist/
+packages/**/lib/
+packages/**/esm/
+packages/**/bundles/
+
+# Development files
+*.tgz
+*.tar.gz
+
+# Temporary files
+tmp/
+temp/
+EOF < /dev/null

@@ -1,0 +1,24 @@
+{
+  "name": "@idle-detection/keepalive",
+  "version": "1.0.0",
+  "description": "Keepalive integration for idle detection",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "scripts": {
+    "build": "tsc",
+    "test": "jest",
+    "lint": "eslint src/**/*.ts"
+  },
+  "dependencies": {
+    "@idle-detection/core": "^1.0.0"
+  },
+  "devDependencies": {
+    "typescript": "^5.0.0"
+  },
+  "keywords": [
+    "idle",
+    "keepalive",
+    "ping"
+  ],
+  "license": "MIT"
+}
