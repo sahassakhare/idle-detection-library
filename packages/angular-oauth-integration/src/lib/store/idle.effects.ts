@@ -144,10 +144,24 @@ export class IdleEffects {
       switchMap(() => {
         this.store.dispatch(IdleActions.refreshToken());
         
-        return this.oidcSecurityService.forceRefreshSession().pipe(
-          map(() => IdleActions.refreshTokenSuccess()),
-          catchError(error => of(IdleActions.refreshTokenFailure({ error })))
-        );
+        // Check if the service and method exist
+        if (this.oidcSecurityService && 
+            typeof this.oidcSecurityService.forceRefreshSession === 'function') {
+          const refreshResult = this.oidcSecurityService.forceRefreshSession();
+          
+          // Ensure the result is an Observable
+          if (refreshResult && typeof refreshResult.pipe === 'function') {
+            return refreshResult.pipe(
+              map(() => IdleActions.refreshTokenSuccess()),
+              catchError(error => of(IdleActions.refreshTokenFailure({ error })))
+            );
+          }
+        }
+        
+        // Fallback if service/method doesn't exist or doesn't return Observable
+        return of(IdleActions.refreshTokenFailure({ 
+          error: 'OAuth service not available or method not implemented' 
+        }));
       })
     )
   );
@@ -166,10 +180,22 @@ export class IdleEffects {
         }
       }),
       switchMap(() => {
-        return this.oidcSecurityService.logoff().pipe(
-          map(() => IdleActions.resetIdle()),
-          catchError(() => of(IdleActions.resetIdle()))
-        );
+        // Check if the service and method exist
+        if (this.oidcSecurityService && 
+            typeof this.oidcSecurityService.logoff === 'function') {
+          const logoffResult = this.oidcSecurityService.logoff();
+          
+          // Ensure the result is an Observable
+          if (logoffResult && typeof logoffResult.pipe === 'function') {
+            return logoffResult.pipe(
+              map(() => IdleActions.resetIdle()),
+              catchError(() => of(IdleActions.resetIdle()))
+            );
+          }
+        }
+        
+        // Fallback if service/method doesn't exist or doesn't return Observable
+        return of(IdleActions.resetIdle());
       })
     )
   );
