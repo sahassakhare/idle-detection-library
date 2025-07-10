@@ -7,7 +7,8 @@ import {
   merge, 
   fromEvent, 
   EMPTY, 
-  of 
+  of,
+  Observable 
 } from 'rxjs';
 import { 
   map, 
@@ -60,21 +61,64 @@ export class IdleEffects {
     }
   }
 
+  initializeIdle$ = createEffect(() =>
+    this.actions$.pipe(
+      ofType(IdleActions.initializeIdle),
+      map(() => IdleActions.startIdleDetection())
+    )
+  );
+
   startIdleDetection$ = createEffect(() =>
     this.actions$.pipe(
       ofType(IdleActions.startIdleDetection),
       withLatestFrom(this.store.select(selectConfig)),
       switchMap(([, config]) => {
-        const activityStreams = this.activityEvents.map(event =>
-          fromEvent(document, event).pipe(
-            map(() => Date.now())
-          )
-        );
+        // Check if we're in a browser environment
+        if (typeof document === 'undefined' || typeof window === 'undefined') {
+          console.warn('Idle detection not available in server-side rendering');
+          return EMPTY;
+        }
 
-        return merge(...activityStreams).pipe(
-          map(timestamp => IdleActions.userActivity({ timestamp })),
-          takeUntil(this.actions$.pipe(ofType(IdleActions.stopIdleDetection)))
-        );
+        try {
+          const activityStreams = this.activityEvents
+            .map(event => {
+              try {
+                const eventStream = fromEvent(document, event);
+                if (!eventStream || typeof eventStream.pipe !== 'function') {
+                  console.warn(`Invalid event stream for ${event}`);
+                  return null;
+                }
+                return eventStream.pipe(
+                  map(() => Date.now()),
+                  catchError(error => {
+                    console.error(`Error listening to ${event} event:`, error);
+                    return EMPTY;
+                  })
+                );
+              } catch (error) {
+                console.error(`Failed to create event listener for ${event}:`, error);
+                return null;
+              }
+            })
+            .filter((stream): stream is Observable<number> => stream !== null); // Type-safe filter
+
+          if (activityStreams.length === 0) {
+            console.warn('No valid activity streams available');
+            return EMPTY;
+          }
+
+          return merge(...activityStreams).pipe(
+            map(timestamp => IdleActions.userActivity({ timestamp })),
+            takeUntil(this.actions$.pipe(ofType(IdleActions.stopIdleDetection))),
+            catchError(error => {
+              console.error('Error in idle detection:', error);
+              return EMPTY;
+            })
+          );
+        } catch (error) {
+          console.error('Failed to setup idle detection:', error);
+          return EMPTY;
+        }
       })
     )
   );
