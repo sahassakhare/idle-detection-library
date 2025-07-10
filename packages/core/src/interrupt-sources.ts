@@ -70,7 +70,7 @@ export const DEFAULT_INTERRUPTSOURCES = [
 
 export class CustomInterruptSource extends InterruptSource {
   private isAttached = false;
-  private intervalId: NodeJS.Timeout | null = null;
+  private intervalId: ReturnType<typeof setInterval> | null = null;
   
   constructor(
     private checkFn: () => boolean,

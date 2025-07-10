@@ -1,14 +1,15 @@
 {
-  "name": "idle-oauth-example",
+  "name": "angular-oauth-integration-example",
   "version": "1.0.0",
+  "description": "Example application for @idle-detection/angular-oauth-integration",
   "scripts": {
     "ng": "ng",
     "start": "ng serve",
     "build": "ng build",
-    "watch": "ng build --watch --configuration development",
-    "test": "ng test"
+    "test": "ng test",
+    "lint": "ng lint",
+    "serve": "ng serve --port 4200 --open"
   },
-  "private": true,
   "dependencies": {
     "@angular/animations": "^18.0.0",
     "@angular/common": "^18.0.0",
@@ -17,23 +18,23 @@
     "@angular/forms": "^18.0.0",
     "@angular/platform-browser": "^18.0.0",
     "@angular/platform-browser-dynamic": "^18.0.0",
-    "@angular/router": "^18.2.13",
-    "@idle-detection/angular-oauth-integration": "file:..",
-    "@idle-detection/core": "file:../../core",
-    "@ngrx/effects": "^18.0.0",
+    "@angular/router": "^18.0.0",
     "@ngrx/store": "^18.0.0",
+    "@ngrx/effects": "^18.0.0",
     "@ngrx/store-devtools": "^18.0.0",
     "angular-auth-oidc-client": "^18.0.0",
+    "@idle-detection/core": "file:../../core",
+    "@idle-detection/angular-oauth-integration": "file:../",
     "rxjs": "~7.8.0",
     "tslib": "^2.3.0",
-    "zone.js": "~0.14.3"
+    "zone.js": "~0.14.0"
   },
   "devDependencies": {
     "@angular-devkit/build-angular": "^18.0.0",
     "@angular/cli": "^18.0.0",
     "@angular/compiler-cli": "^18.0.0",
     "@types/jasmine": "~5.1.0",
-    "@types/node": "^18.18.0",
+    "@types/node": "^20.0.0",
     "jasmine-core": "~5.1.0",
     "karma": "~6.4.0",
     "karma-chrome-launcher": "~3.2.0",

@@ -1,101 +1,206 @@
-import { Injectable, inject } from '@angular/core';
+import { Injectable } from '@angular/core';
 import { Actions, createEffect, ofType } from '@ngrx/effects';
 import { Store } from '@ngrx/store';
 import { OidcSecurityService } from 'angular-auth-oidc-client';
-import { of, timer, EMPTY } from 'rxjs';
+import { 
+  timer, 
+  merge, 
+  fromEvent, 
+  EMPTY, 
+  of 
+} from 'rxjs';
 import { 
   map, 
   switchMap, 
-  catchError, 
   takeUntil, 
+  withLatestFrom,
+  catchError,
   tap,
-  withLatestFrom 
+  filter,
+  mergeMap
 } from 'rxjs/operators';
+import { HttpClient } from '@angular/common/http';
 import * as IdleActions from './idle.actions';
-import { selectRemainingTime } from './idle.selectors';
+import { 
+  selectConfig, 
+  selectIsWarning, 
+  selectMultiTabCoordination,
+  selectLastActivity,
+  selectIdleTimeout,
+  selectWarningTimeout
+} from './idle.selectors';
+import { TabCoordinationMessage } from '../types';
 
 @Injectable()
 export class IdleEffects {
-  private actions$ = inject(Actions);
-  private store = inject(Store);
-  private oidcSecurityService = inject(OidcSecurityService);
-  
-  warningCountdown$ = createEffect(() =>
-    this.actions$.pipe(
-      ofType(IdleActions.warningStarted),
-      switchMap(({ remainingTime }) =>
-        timer(0, 1000).pipe(
-          map((tick) => remainingTime - tick),
-          map((timeLeft) => {
-            if (timeLeft <= 0) {
-              return IdleActions.timeout();
-            }
-            return IdleActions.warningTick({ remainingTime: timeLeft });
-          }),
-          takeUntil(this.actions$.pipe(
-            ofType(
-              IdleActions.userActivity,
-              IdleActions.resetIdle,
-              IdleActions.stopWatching,
-              IdleActions.timeout
-            )
-          ))
-        )
-      )
-    )
-  );
+  private readonly activityEvents = [
+    'mousedown', 'mousemove', 'keypress', 'scroll', 
+    'touchstart', 'click', 'contextmenu', 'dblclick', 
+    'mousewheel', 'mouseup', 'touchend', 'touchcancel', 
+    'touchmove'
+  ];
 
-  refreshToken$ = createEffect(() =>
+  private broadcastChannel?: BroadcastChannel;
+
+  constructor(
+    private actions$: Actions,
+    private store: Store,
+    private oidcSecurityService: OidcSecurityService,
+    private http: HttpClient
+  ) {
+    this.initializeBroadcastChannel();
+  }
+
+  private initializeBroadcastChannel() {
+    if (typeof BroadcastChannel !== 'undefined') {
+      this.broadcastChannel = new BroadcastChannel('idle-detection');
+      this.broadcastChannel.onmessage = (event) => {
+        this.store.dispatch(IdleActions.handleTabMessage({ message: event.data }));
+      };
+    }
+  }
+
+  startIdleDetection$ = createEffect(() =>
     this.actions$.pipe(
-      ofType(IdleActions.refreshTokenRequest),
-      switchMap(() =>
-        this.oidcSecurityService.forceRefreshSession().pipe(
-          map((result) => {
-            if (result?.isAuthenticated) {
-              return IdleActions.refreshTokenSuccess();
-            } else {
-              return IdleActions.refreshTokenFailure({ 
-                error: 'Token refresh failed - user not authenticated' 
-              });
-            }
-          }),
-          catchError((error) =>
-            of(IdleActions.refreshTokenFailure({ error }))
+      ofType(IdleActions.startIdleDetection),
+      withLatestFrom(this.store.select(selectConfig)),
+      switchMap(([, config]) => {
+        const activityStreams = this.activityEvents.map(event =>
+          fromEvent(document, event).pipe(
+            map(() => Date.now())
           )
-        )
-      )
+        );
+
+        return merge(...activityStreams).pipe(
+          map(timestamp => IdleActions.userActivity({ timestamp })),
+          takeUntil(this.actions$.pipe(ofType(IdleActions.stopIdleDetection)))
+        );
+      })
     )
   );
 
-  autoRefreshOnActivity$ = createEffect(() =>
+  userActivity$ = createEffect(() =>
     this.actions$.pipe(
       ofType(IdleActions.userActivity),
-      withLatestFrom(this.store.select(selectRemainingTime)),
-      switchMap(([action, remainingTime]) => {
-        // Only refresh token if user was in warning state (had remaining time > 0)
-        if (remainingTime > 0) {
-          return of(IdleActions.refreshTokenRequest());
+      withLatestFrom(this.store.select(selectMultiTabCoordination)),
+      tap(([{ timestamp }, multiTabCoordination]) => {
+        if (multiTabCoordination && this.broadcastChannel) {
+          const message: TabCoordinationMessage = {
+            type: 'activity',
+            timestamp,
+            data: { timestamp }
+          };
+          this.broadcastChannel.postMessage(message);
         }
-        return EMPTY;
+      }),
+      map(() => IdleActions.resetIdle())
+    )
+  );
+
+  startWarningTimer$ = createEffect(() =>
+    this.actions$.pipe(
+      ofType(IdleActions.userActivity, IdleActions.resetIdle),
+      withLatestFrom(
+        this.store.select(selectIdleTimeout),
+        this.store.select(selectWarningTimeout)
+      ),
+      switchMap(([, idleTimeout, warningTimeout]) => {
+        const warningStartTime = idleTimeout - warningTimeout;
+        
+        return timer(warningStartTime).pipe(
+          map(() => IdleActions.startWarning({ timeRemaining: warningTimeout })),
+          takeUntil(this.actions$.pipe(
+            ofType(IdleActions.userActivity, IdleActions.stopIdleDetection)
+          ))
+        );
+      })
+    )
+  );
+
+  warningCountdown$ = createEffect(() =>
+    this.actions$.pipe(
+      ofType(IdleActions.startWarning),
+      switchMap(({ timeRemaining }) => {
+        return timer(0, 1000).pipe(
+          map(tick => {
+            const remaining = Math.max(0, timeRemaining - (tick * 1000));
+            return remaining > 0 
+              ? IdleActions.updateWarningTime({ timeRemaining: remaining })
+              : IdleActions.startIdle();
+          }),
+          takeUntil(this.actions$.pipe(
+            ofType(IdleActions.userActivity, IdleActions.extendSession, IdleActions.stopIdleDetection)
+          ))
+        );
+      })
+    )
+  );
+
+  autoRefreshToken$ = createEffect(() =>
+    this.actions$.pipe(
+      ofType(IdleActions.startWarning),
+      withLatestFrom(this.store.select(selectConfig)),
+      filter(([, config]) => config.autoRefreshToken),
+      switchMap(() => {
+        this.store.dispatch(IdleActions.refreshToken());
+        
+        return this.oidcSecurityService.forceRefreshSession().pipe(
+          map(() => IdleActions.refreshTokenSuccess()),
+          catchError(error => of(IdleActions.refreshTokenFailure({ error })))
+        );
       })
     )
   );
 
   logout$ = createEffect(() =>
     this.actions$.pipe(
-      ofType(IdleActions.logoutRequest),
-      tap(() => {
-        this.oidcSecurityService.logoff();
+      ofType(IdleActions.startIdle, IdleActions.logout),
+      withLatestFrom(this.store.select(selectMultiTabCoordination)),
+      tap(([, multiTabCoordination]) => {
+        if (multiTabCoordination && this.broadcastChannel) {
+          const message: TabCoordinationMessage = {
+            type: 'logout',
+            timestamp: Date.now()
+          };
+          this.broadcastChannel.postMessage(message);
+        }
       }),
-      map(() => IdleActions.logoutSuccess())
+      switchMap(() => {
+        return this.oidcSecurityService.logoff().pipe(
+          map(() => IdleActions.resetIdle()),
+          catchError(() => of(IdleActions.resetIdle()))
+        );
+      })
     )
   );
 
-  timeout$ = createEffect(() =>
+  loadExternalConfig$ = createEffect(() =>
     this.actions$.pipe(
-      ofType(IdleActions.timeout),
-      map(() => IdleActions.logoutRequest())
+      ofType(IdleActions.loadExternalConfig),
+      switchMap(({ configUrl }) => {
+        return this.http.get(configUrl).pipe(
+          map(config => IdleActions.loadExternalConfigSuccess({ config: config as any })),
+          catchError(error => of(IdleActions.loadExternalConfigFailure({ error })))
+        );
+      })
     )
   );
 
+  handleTabMessages$ = createEffect(() =>
+    this.actions$.pipe(
+      ofType(IdleActions.handleTabMessage),
+      switchMap(({ message }) => {
+        switch (message.type) {
+          case 'activity':
+            return of(IdleActions.userActivity({ timestamp: message.timestamp }));
+          case 'warning':
+            return of(IdleActions.startWarning({ timeRemaining: message.data?.timeRemaining || 0 }));
+          case 'logout':
+            return of(IdleActions.startIdle());
+          default:
+            return EMPTY;
+        }
+      })
+    )
+  );
 }

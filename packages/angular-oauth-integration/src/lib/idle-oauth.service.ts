@@ -1,203 +1,172 @@
-import { Injectable, Inject, Optional, OnDestroy } from '@angular/core';
-import { 
-  Idle, 
-  IdleEvent, 
-  DEFAULT_INTERRUPTSOURCES, 
-  LocalStorageExpiry,
-  isPlatformBrowser 
-} from '@idle-detection/core';
-import { OidcSecurityService } from 'angular-auth-oidc-client';
-import { Observable } from 'rxjs';
+import { Injectable, inject, OnDestroy, Inject, Optional } from '@angular/core';
 import { Store } from '@ngrx/store';
-import { IDLE_OAUTH_CONFIG, AngularIdleOAuthConfig, DEFAULT_IDLE_OAUTH_CONFIG } from './types';
+import { OidcSecurityService } from 'angular-auth-oidc-client';
+import { Observable, Subject, combineLatest } from 'rxjs';
+import { takeUntil, map, filter, distinctUntilChanged, take } from 'rxjs/operators';
+import { Idle, IdleEvent, DEFAULT_INTERRUPTSOURCES } from '@idle-detection/core';
+import { IdleOAuthConfig, IdleState, IdleStatus, IdleWarningData } from './types';
+import { IDLE_OAUTH_CONFIG } from './providers';
 import * as IdleActions from './store/idle.actions';
-import * as IdleSelectors from './store/idle.selectors';
-import { IdleState } from './store/idle.state';
+import { 
+  selectIdleState, 
+  selectIsIdle, 
+  selectIsWarning, 
+  selectTimeRemaining,
+  selectConfig,
+  selectIdleStatus
+} from './store/idle.selectors';
 
-export interface IdleStateView {
-  isIdle: boolean;
-  isWarning: boolean;
-  isTimedOut: boolean;
-  lastActivity: Date;
-  remainingTime?: number;
-}
-
-@Injectable()
+@Injectable({
+  providedIn: 'root'
+})
 export class IdleOAuthService implements OnDestroy {
-  private idle!: Idle;
-  private config: AngularIdleOAuthConfig;
+  private store = inject(Store);
+  private oidcSecurityService = inject(OidcSecurityService);
+  private destroy$ = new Subject<void>();
+  private idleManager: Idle;
 
-  // NgRx Store selectors as observables (initialized in constructor)
-  public state$: Observable<IdleStateView>;
-  public isIdle$: Observable<boolean>;
-  public isWarning$: Observable<boolean>;
-  public warning$: Observable<boolean>; // Alias for compatibility
-  public isTimedOut$: Observable<boolean>;
-  public showWarning$: Observable<boolean>;
-  public remainingTime$: Observable<number>;
-  public sessionStatus$: Observable<string>;
+  public readonly idleState$ = this.store.select(selectIdleState);
+  public readonly isIdle$ = this.store.select(selectIsIdle);
+  public readonly isWarning$ = this.store.select(selectIsWarning);
+  public readonly timeRemaining$ = this.store.select(selectTimeRemaining);
+  public readonly config$ = this.store.select(selectConfig);
+  public readonly idleStatus$ = this.store.select(selectIdleStatus);
 
   constructor(
-    private oidcSecurityService: OidcSecurityService,
-    private store: Store,
-    @Optional() @Inject(IDLE_OAUTH_CONFIG) config?: AngularIdleOAuthConfig
+    @Optional() @Inject(IDLE_OAUTH_CONFIG) private config: IdleOAuthConfig | null
   ) {
-    this.config = { ...DEFAULT_IDLE_OAUTH_CONFIG, ...config };
+    this.idleManager = new Idle();
+    this.setupAuthenticationWatcher();
     
-    // Initialize NgRx Store selectors
-    this.state$ = this.store.select(IdleSelectors.selectCurrentState);
-    this.isIdle$ = this.store.select(IdleSelectors.selectIsIdle);
-    this.isWarning$ = this.store.select(IdleSelectors.selectIsWarning);
-    this.warning$ = this.store.select(IdleSelectors.selectIsWarning); // Alias for compatibility
-    this.isTimedOut$ = this.store.select(IdleSelectors.selectIsTimedOut);
-    this.showWarning$ = this.store.select(IdleSelectors.selectShowWarning);
-    this.remainingTime$ = this.store.select(IdleSelectors.selectRemainingTime);
-    this.sessionStatus$ = this.store.select(IdleSelectors.selectSessionStatus);
-    
-    if (isPlatformBrowser()) {
-      this.initializeIdleDetection();
+    if (this.config) {
+      this.initialize(this.config);
     }
   }
 
-  private initializeIdleDetection(): void {
-    this.idle = new Idle({
-      idleTimeout: this.config.idleTimeout,
-      warningTimeout: this.config.warningTimeout,
-      autoResume: this.config.autoResume,
-      idleName: this.config.idleName || 'oauth-idle'
-    });
+  initialize(config: IdleOAuthConfig): void {
+    this.store.dispatch(IdleActions.initializeIdle({ config }));
+    
+    if (config.configUrl) {
+      this.store.dispatch(IdleActions.loadExternalConfig({ configUrl: config.configUrl }));
+    }
 
+    // Configure idle manager with timeouts
+    this.idleManager.setIdleTimeout(config.idleTimeout);
+    this.idleManager.setWarningTimeout(config.warningTimeout);
+    
     // Set up interrupt sources
-    this.idle.setInterrupts(DEFAULT_INTERRUPTSOURCES);
+    this.idleManager.setInterrupts(DEFAULT_INTERRUPTSOURCES);
 
-    // Set up multi-tab coordination if enabled
-    if (this.config.multiTabCoordination) {
-      this.idle.setExpiry(new LocalStorageExpiry(this.config.multiTabStorageKey));
-    }
-
-    // Set up event handlers
-    this.setupEventHandlers();
-
-    this.log('Idle detection initialized');
+    this.setupIdleDetection();
   }
 
-  private setupEventHandlers(): void {
-    this.idle.on(IdleEvent.IDLE_START, () => {
-      this.log('User went idle');
-      this.store.dispatch(IdleActions.idleStarted());
+  start(): void {
+    this.store.dispatch(IdleActions.startIdleDetection());
+    this.idleManager.watch();
+  }
+
+  stop(): void {
+    this.store.dispatch(IdleActions.stopIdleDetection());
+    this.idleManager.stop();
+  }
+
+  extendSession(): void {
+    this.store.dispatch(IdleActions.extendSession());
+  }
+
+  logout(): void {
+    this.store.dispatch(IdleActions.logout());
+  }
+
+  updateConfig(config: Partial<IdleOAuthConfig>): void {
+    this.store.dispatch(IdleActions.updateConfig({ config }));
+  }
+
+  setUserRole(role: string): void {
+    this.store.dispatch(IdleActions.setUserRole({ role }));
+  }
+
+  getWarningData(): Observable<IdleWarningData> {
+    return combineLatest([
+      this.timeRemaining$,
+      this.config$
+    ]).pipe(
+      map(([timeRemaining, config]) => ({
+        timeRemaining,
+        timeRemaining$: this.timeRemaining$,
+        onExtendSession: () => this.extendSession(),
+        onLogout: () => this.logout(),
+        cssClasses: config.customCssClasses
+      }))
+    );
+  }
+
+  getCurrentWarningData(): IdleWarningData | null {
+    let currentTimeRemaining = 0;
+    let currentConfig: any = null;
+    
+    this.timeRemaining$.pipe(take(1)).subscribe(time => currentTimeRemaining = time);
+    this.config$.pipe(take(1)).subscribe(config => currentConfig = config);
+    
+    return {
+      timeRemaining: currentTimeRemaining,
+      timeRemaining$: this.timeRemaining$,
+      onExtendSession: () => this.extendSession(),
+      onLogout: () => this.logout(),
+      cssClasses: currentConfig?.customCssClasses
+    };
+  }
+
+  private setupAuthenticationWatcher(): void {
+    this.oidcSecurityService.isAuthenticated$
+      .pipe(
+        distinctUntilChanged(),
+        takeUntil(this.destroy$)
+      )
+      .subscribe(({ isAuthenticated }) => {
+        if (isAuthenticated) {
+          this.start();
+        } else {
+          this.stop();
+        }
+      });
+
+    this.oidcSecurityService.userData$
+      .pipe(
+        filter(userData => !!userData),
+        map(userData => {
+          const userDataAny = userData as any;
+          return userDataAny?.role || userDataAny?.userRole || userDataAny?.roles?.[0] || 'default';
+        }),
+        distinctUntilChanged(),
+        takeUntil(this.destroy$)
+      )
+      .subscribe(role => {
+        this.setUserRole(role);
+      });
+  }
+
+  private setupIdleDetection(): void {
+    this.idleManager.on(IdleEvent.IDLE_START, () => {
+      this.store.dispatch(IdleActions.startWarning({ timeRemaining: 0 }));
     });
 
-    this.idle.on(IdleEvent.WARNING_START, () => {
-      this.log('Warning phase started');
-      const remainingTime = Math.floor(this.config.warningTimeout! / 1000);
-      this.store.dispatch(IdleActions.warningStarted({ remainingTime }));
+    this.idleManager.on(IdleEvent.TIMEOUT, () => {
+      this.store.dispatch(IdleActions.startIdle());
     });
 
-    this.idle.on(IdleEvent.INTERRUPT, () => {
-      this.log('User activity detected');
-      this.store.dispatch(IdleActions.userActivity());
+    this.idleManager.on(IdleEvent.IDLE_END, () => {
+      this.store.dispatch(IdleActions.resetIdle());
     });
 
-    this.idle.on(IdleEvent.TIMEOUT, () => {
-      this.log('User timed out');
-      this.store.dispatch(IdleActions.timeout());
+    this.idleManager.on(IdleEvent.INTERRUPT, () => {
+      this.store.dispatch(IdleActions.userActivity({ timestamp: Date.now() }));
     });
-  }
-
-
-  private log(message: string, ...args: any[]): void {
-    if (this.config.debug) {
-      console.log(`[IdleOAuthService] ${message}`, ...args);
-    }
-  }
-
-  /**
-   * Start monitoring for idle activity
-   */
-  public startWatching(): void {
-    if (!isPlatformBrowser()) {
-      return;
-    }
-    
-    this.idle.watch();
-    this.store.dispatch(IdleActions.startWatching());
-    this.log('Started watching for idle activity');
-  }
-
-  /**
-   * Stop monitoring for idle activity
-   */
-  public stopWatching(): void {
-    if (!isPlatformBrowser()) {
-      return;
-    }
-    
-    this.idle.stop();
-    this.store.dispatch(IdleActions.stopWatching());
-    this.log('Stopped watching for idle activity');
-  }
-
-  /**
-   * Reset idle timer (mark user as active)
-   */
-  public resetIdle(): void {
-    if (!isPlatformBrowser()) {
-      return;
-    }
-    
-    this.idle.reset();
-    this.store.dispatch(IdleActions.resetIdle());
-    this.log('Idle timer reset');
-  }
-
-  /**
-   * Get current idle state
-   */
-  public getCurrentState(): Observable<IdleStateView> {
-    return this.state$;
-  }
-
-  /**
-   * Check if user is currently idle
-   */
-  public isUserIdle(): Observable<boolean> {
-    return this.isIdle$;
-  }
-
-  /**
-   * Check if user is in warning state
-   */
-  public isUserInWarning(): Observable<boolean> {
-    return this.isWarning$;
-  }
-
-  /**
-   * Check if user has timed out
-   */
-  public isUserTimedOut(): Observable<boolean> {
-    return this.isTimedOut$;
-  }
-
-  /**
-   * Extend the session (same as resetIdle)
-   */
-  public extendSession(): void {
-    this.resetIdle();
-  }
-
-  /**
-   * Manually logout user
-   */
-  public logoutNow(): void {
-    this.stopWatching();
-    this.store.dispatch(IdleActions.logoutRequest());
-    
-    if (this.config.timeoutRedirectUrl) {
-      window.location.href = this.config.timeoutRedirectUrl;
-    }
   }
 
   ngOnDestroy(): void {
-    this.stopWatching();
+    this.destroy$.next();
+    this.destroy$.complete();
+    this.idleManager.stop();
   }
 }

@@ -1,73 +1,86 @@
 import { createFeatureSelector, createSelector } from '@ngrx/store';
-import { IdleState } from './idle.state';
+import { IdleState } from '../types';
+import { IDLE_FEATURE_KEY } from './idle.state';
 
-export const selectIdleState = createFeatureSelector<IdleState>('idle');
+export const selectIdleState = createFeatureSelector<IdleState>(IDLE_FEATURE_KEY);
 
 export const selectIsIdle = createSelector(
   selectIdleState,
-  (state: IdleState) => state.isIdle
+  (state) => state.isIdle
 );
 
 export const selectIsWarning = createSelector(
   selectIdleState,
-  (state: IdleState) => state.isWarning
+  (state) => state.isWarning
 );
 
-export const selectIsTimedOut = createSelector(
+export const selectTimeRemaining = createSelector(
   selectIdleState,
-  (state: IdleState) => state.isTimedOut
-);
-
-export const selectIsWatching = createSelector(
-  selectIdleState,
-  (state: IdleState) => state.isWatching
+  (state) => state.timeRemaining
 );
 
 export const selectLastActivity = createSelector(
   selectIdleState,
-  (state: IdleState) => state.lastActivity
+  (state) => state.lastActivity
 );
 
-export const selectRemainingTime = createSelector(
+export const selectTokenRefreshInProgress = createSelector(
   selectIdleState,
-  (state: IdleState) => state.remainingTime
+  (state) => state.tokenRefreshInProgress
 );
 
-export const selectIsRefreshingToken = createSelector(
+export const selectMultiTabActive = createSelector(
   selectIdleState,
-  (state: IdleState) => state.isRefreshingToken
+  (state) => state.multiTabActive
 );
 
-export const selectRefreshTokenError = createSelector(
+export const selectUserRole = createSelector(
   selectIdleState,
-  (state: IdleState) => state.refreshTokenError
+  (state) => state.userRole
 );
 
-export const selectShowWarning = createSelector(
-  selectIsWarning,
-  selectIsWatching,
-  (isWarning: boolean, isWatching: boolean) => isWarning && isWatching
-);
-
-export const selectCurrentState = createSelector(
+export const selectConfig = createSelector(
   selectIdleState,
-  (state: IdleState) => ({
-    isIdle: state.isIdle,
-    isWarning: state.isWarning,
-    isTimedOut: state.isTimedOut,
-    lastActivity: state.lastActivity,
-    remainingTime: state.remainingTime
-  })
+  (state) => state.config
 );
 
-export const selectSessionStatus = createSelector(
-  selectIsTimedOut,
-  selectIsWarning,
+export const selectIdleTimeout = createSelector(
+  selectConfig,
+  (config) => config.idleTimeout
+);
+
+export const selectWarningTimeout = createSelector(
+  selectConfig,
+  (config) => config.warningTimeout
+);
+
+export const selectAutoRefreshToken = createSelector(
+  selectConfig,
+  (config) => config.autoRefreshToken
+);
+
+export const selectMultiTabCoordination = createSelector(
+  selectConfig,
+  (config) => config.multiTabCoordination
+);
+
+export const selectCustomCssClasses = createSelector(
+  selectConfig,
+  (config) => config.customCssClasses
+);
+
+export const selectIsActive = createSelector(
   selectIsIdle,
-  (isTimedOut: boolean, isWarning: boolean, isIdle: boolean) => {
-    if (isTimedOut) return 'timeout';
-    if (isWarning) return 'warning';
+  selectIsWarning,
+  (isIdle, isWarning) => !isIdle && !isWarning
+);
+
+export const selectIdleStatus = createSelector(
+  selectIsIdle,
+  selectIsWarning,
+  (isIdle, isWarning) => {
     if (isIdle) return 'idle';
+    if (isWarning) return 'warning';
     return 'active';
   }
 );

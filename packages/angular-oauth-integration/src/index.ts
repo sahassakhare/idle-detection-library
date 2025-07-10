@@ -1,4 +1,3 @@
-// Public API exports
 export * from './lib/types';
 export * from './lib/idle-oauth.service';
 export * from './lib/idle-warning-dialog.component';

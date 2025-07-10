@@ -1,164 +1,215 @@
-import { Component, OnInit, OnDestroy, Input, inject } from '@angular/core';
+import { 
+  Component, 
+  Input, 
+  Output, 
+  EventEmitter, 
+  OnInit, 
+  OnDestroy,
+  ChangeDetectionStrategy,
+  inject,
+  signal,
+  computed
+} from '@angular/core';
 import { CommonModule } from '@angular/common';
+import { Observable, Subject, timer } from 'rxjs';
+import { takeUntil, map, startWith } from 'rxjs/operators';
 import { Store } from '@ngrx/store';
-import { Observable, Subject, takeUntil, BehaviorSubject, map } from 'rxjs';
-import { IdleOAuthService } from './idle-oauth.service';
-import { IdleState } from './store/idle.state';
-import * as IdleSelectors from './store/idle.selectors';
+import { IdleWarningData } from './types';
+import { selectTimeRemaining, selectIsWarning } from './store/idle.selectors';
 
 @Component({
   selector: 'idle-warning-dialog',
   standalone: true,
   imports: [CommonModule],
+  changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
-    <div *ngIf="showWarning$ | async" 
-         [class]="getBackdropClasses()" 
-         (click)="onBackdropClick($event)">
-      <div [class]="getDialogClasses()" 
-           [ngStyle]="customStyles"
-           (click)="$event.stopPropagation()">
-        <div [class]="headerClass">
-          <h2 [class]="titleClass">{{ title$ | async }}</h2>
+    <div 
+      class="idle-warning-overlay"
+      [class]="cssClasses()?.overlay || 'idle-warning-overlay'"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="idle-warning-title"
+      aria-describedby="idle-warning-message"
+    >
+      <div 
+        class="idle-warning-dialog"
+        [class]="cssClasses()?.dialog || 'idle-warning-dialog'"
+      >
+        <h2 
+          id="idle-warning-title"
+          class="idle-warning-title"
+          [class]="cssClasses()?.title || 'idle-warning-title'"
+        >
+          {{ title() }}
+        </h2>
+        
+        <div 
+          id="idle-warning-message"
+          class="idle-warning-message"
+          [class]="cssClasses()?.message || 'idle-warning-message'"
+        >
+          <p>{{ message() }}</p>
+          <div class="idle-warning-timer" aria-live="polite">
+            {{ formatTime(timeRemaining()) }}
+          </div>
         </div>
         
-        <div [class]="bodyClass">
-          <p [class]="messageClass">{{ message$ | async }}</p>
-          
-          <div *ngIf="showCountdown" [class]="countdownClass">
-            <span [class]="countdownLabelClass">Time remaining:</span>
-            <span [class]="countdownTimeClass">{{ formatTime(remainingTime$ | async) }}</span>
-          </div>
-          
-          <div *ngIf="showProgressBar" [class]="progressClass">
-            <div 
-              [class]="progressBarClass" 
-              [style.width.%]="progressPercentage$ | async">
-            </div>
-          </div>
-        </div>
-        
-        <div [class]="actionsClass">
+        <div class="idle-warning-actions">
           <button 
-            type="button" 
-            [class]="primaryButtonClass" 
-            (click)="extendSession()"
-            [attr.aria-label]="'Extend session'">
-            {{ extendButtonText$ | async }}
+            type="button"
+            class="idle-warning-button idle-warning-button-primary"
+            [class]="getButtonClass('primary')"
+            (click)="onExtendSession()"
+            [attr.aria-label]="extendButtonLabel()"
+          >
+            {{ extendButtonText() }}
           </button>
+          
           <button 
-            type="button" 
-            [class]="secondaryButtonClass" 
-            (click)="logoutNow()"
-            [attr.aria-label]="'Logout now'">
-            {{ logoutButtonText$ | async }}
+            type="button"
+            class="idle-warning-button idle-warning-button-secondary"
+            [class]="getButtonClass('secondary')"
+            (click)="onLogout()"
+            [attr.aria-label]="logoutButtonLabel()"
+          >
+            {{ logoutButtonText() }}
           </button>
         </div>
       </div>
     </div>
   `,
-  styles: []
+  styles: [`
+    .idle-warning-overlay {
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background: rgba(0, 0, 0, 0.5);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 9999;
+    }
+
+    .idle-warning-dialog {
+      background: white;
+      border-radius: 8px;
+      padding: 24px;
+      max-width: 400px;
+      width: 90%;
+      box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    }
+
+    .idle-warning-title {
+      margin: 0 0 16px 0;
+      font-size: 18px;
+      font-weight: 600;
+      color: #1f2937;
+    }
+
+    .idle-warning-message {
+      margin: 0 0 24px 0;
+      color: #4b5563;
+      line-height: 1.5;
+    }
+
+    .idle-warning-timer {
+      font-size: 24px;
+      font-weight: 600;
+      color: #dc2626;
+      text-align: center;
+      margin: 16px 0;
+    }
+
+    .idle-warning-actions {
+      display: flex;
+      gap: 12px;
+      justify-content: flex-end;
+    }
+
+    .idle-warning-button {
+      padding: 8px 16px;
+      border: none;
+      border-radius: 4px;
+      cursor: pointer;
+      font-size: 14px;
+      font-weight: 500;
+      transition: all 0.2s ease;
+    }
+
+    .idle-warning-button-primary {
+      background: #3b82f6;
+      color: white;
+    }
+
+    .idle-warning-button-primary:hover {
+      background: #2563eb;
+    }
+
+    .idle-warning-button-secondary {
+      background: #6b7280;
+      color: white;
+    }
+
+    .idle-warning-button-secondary:hover {
+      background: #4b5563;
+    }
+
+    .idle-warning-button:focus {
+      outline: 2px solid #3b82f6;
+      outline-offset: 2px;
+    }
+  `]
 })
 export class IdleWarningDialogComponent implements OnInit, OnDestroy {
-  // Input properties for customization
-  @Input() dialogTitle?: string;
-  @Input() dialogMessage?: string;
-  @Input() extendButtonLabel?: string;
-  @Input() logoutButtonLabel?: string;
-  @Input() showProgressBar?: boolean = true;
-  @Input() showCountdown?: boolean = true;
-  @Input() autoClose?: boolean = false;
-  @Input() theme?: 'default' | 'dark' | 'minimal' = 'default';
-  @Input() size?: 'small' | 'medium' | 'large' = 'medium';
-  @Input() backdropClose?: boolean = false;
-  @Input() customStyles?: { [key: string]: string };
-  
-  // CSS class customization
-  @Input() backdropClass?: string = 'idle-warning-backdrop';
-  @Input() dialogClass?: string = 'idle-warning-dialog';
-  @Input() headerClass?: string = 'idle-warning-header';
-  @Input() bodyClass?: string = 'idle-warning-body';
-  @Input() titleClass?: string = 'idle-warning-title';
-  @Input() messageClass?: string = 'idle-warning-message';
-  @Input() countdownClass?: string = 'idle-warning-countdown';
-  @Input() countdownLabelClass?: string = 'countdown-label';
-  @Input() countdownTimeClass?: string = 'countdown-time';
-  @Input() progressClass?: string = 'idle-warning-progress';
-  @Input() progressBarClass?: string = 'progress-bar';
-  @Input() actionsClass?: string = 'idle-warning-actions';
-  @Input() primaryButtonClass?: string = 'btn btn-primary';
-  @Input() secondaryButtonClass?: string = 'btn btn-secondary';
+  @Input() warningData!: IdleWarningData;
+  @Input() set titleText(value: string) { this.title.set(value); }
+  @Input() set messageText(value: string) { this.message.set(value); }
+  @Input() set extendText(value: string) { this.extendButtonText.set(value); }
+  @Input() set logoutText(value: string) { this.logoutButtonText.set(value); }
+  @Input() set extendLabel(value: string) { this.extendButtonLabel.set(value); }
+  @Input() set logoutLabel(value: string) { this.logoutButtonLabel.set(value); }
 
-  // NgRx Store observables (initialized in ngOnInit)
-  remainingTime$!: Observable<number>;
-  showWarning$!: Observable<boolean>;
-  
-  // Component state using BehaviorSubjects
-  private totalWarningTimeSubject = new BehaviorSubject<number>(0);
-  private titleSubject = new BehaviorSubject<string>('Session Timeout Warning');
-  private messageSubject = new BehaviorSubject<string>('Your session will expire soon due to inactivity.');
-  private extendButtonTextSubject = new BehaviorSubject<string>('Stay Logged In');
-  private logoutButtonTextSubject = new BehaviorSubject<string>('Logout Now');
-
-  // Observable state
-  totalWarningTime$ = this.totalWarningTimeSubject.asObservable();
-  title$ = this.titleSubject.asObservable();
-  message$ = this.messageSubject.asObservable();
-  extendButtonText$ = this.extendButtonTextSubject.asObservable();
-  logoutButtonText$ = this.logoutButtonTextSubject.asObservable();
-
-  // Computed observables (initialized in ngOnInit)
-  progressPercentage$!: Observable<number>;
+  @Output() extendSession = new EventEmitter<void>();
+  @Output() logout = new EventEmitter<void>();
 
   private destroy$ = new Subject<void>();
-  private idleOAuthService = inject(IdleOAuthService);
-  private store = inject(Store<{ idle: IdleState }>);
+  private store = inject(Store);
+  
+  timeRemaining = signal(0);
+  cssClasses = signal<any>(null);
+  
+  title = signal('Session Timeout Warning');
+  message = signal('Your session is about to expire due to inactivity.');
+  extendButtonText = signal('Extend Session');
+  logoutButtonText = signal('Logout');
+  extendButtonLabel = signal('Extend your session to continue');
+  logoutButtonLabel = signal('Logout and end your session');
 
   ngOnInit(): void {
-    // Initialize store selectors
-    this.remainingTime$ = this.store.select(IdleSelectors.selectRemainingTime);
-    this.showWarning$ = this.store.select(IdleSelectors.selectShowWarning);
-    
-    // Initialize computed observables
-    this.progressPercentage$ = this.remainingTime$.pipe(
-      map(remaining => {
-        const total = this.totalWarningTimeSubject.value;
-        return total > 0 ? (remaining / total) * 100 : 0;
-      })
-    );
-    
-    // Apply custom configuration
-    this.applyCustomConfiguration();
-    
-    // Set total warning time from service config
-    this.totalWarningTimeSubject.next(Math.floor(this.getTotalWarningTime() / 1000));
-    
-    // Auto-close logic using subscription
-    this.remainingTime$
-      .pipe(takeUntil(this.destroy$))
-      .subscribe(remainingTime => {
-        if (this.autoClose && remainingTime <= 0) {
-          this.logoutNow();
-        }
-      });
-  }
-
-  private applyCustomConfiguration(): void {
-    // Update BehaviorSubjects with input values if provided
-    if (this.dialogTitle !== undefined) {
-      this.titleSubject.next(this.dialogTitle);
+    if (this.warningData) {
+      this.cssClasses.set(this.warningData.cssClasses);
     }
     
-    if (this.dialogMessage !== undefined) {
-      this.messageSubject.next(this.dialogMessage);
-    }
+    // Subscribe to timeRemaining updates from the store
+    this.store.select(selectTimeRemaining).pipe(
+      takeUntil(this.destroy$)
+    ).subscribe(remaining => {
+      this.timeRemaining.set(remaining);
+      if (remaining <= 0) {
+        this.onLogout();
+      }
+    });
     
-    if (this.extendButtonLabel !== undefined) {
-      this.extendButtonTextSubject.next(this.extendButtonLabel);
-    }
-    
-    if (this.logoutButtonLabel !== undefined) {
-      this.logoutButtonTextSubject.next(this.logoutButtonLabel);
-    }
+    // Also subscribe to warning state to auto-close dialog
+    this.store.select(selectIsWarning).pipe(
+      takeUntil(this.destroy$)
+    ).subscribe(isWarning => {
+      if (!isWarning) {
+        // Warning ended, component should be hidden by parent
+      }
+    });
   }
 
   ngOnDestroy(): void {
@@ -166,45 +217,35 @@ export class IdleWarningDialogComponent implements OnInit, OnDestroy {
     this.destroy$.complete();
   }
 
-  private getTotalWarningTime(): number {
-    // This should come from the service configuration
-    // For now, we'll use a default or try to get it from the service
-    return 2 * 60 * 1000; // 2 minutes default
-  }
-
-  formatTime(seconds: number | null): string {
-    if (seconds === null || seconds === undefined || isNaN(seconds)) {
-      return '00:00';
-    }
-    const mins = Math.floor(seconds / 60);
-    const secs = seconds % 60;
-    return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
-  }
-
-  extendSession(): void {
-    this.idleOAuthService.extendSession();
-  }
-
-  logoutNow(): void {
-    this.idleOAuthService.logoutNow();
-  }
-
-  onBackdropClick(_event: Event): void {
-    if (this.backdropClose) {
-      this.extendSession();
+  onExtendSession(): void {
+    this.extendSession.emit();
+    if (this.warningData?.onExtendSession) {
+      this.warningData.onExtendSession();
     }
   }
 
-  getDialogClasses(): string {
-    let classes = this.dialogClass || 'idle-warning-dialog';
-    if (this.size) classes += ` size-${this.size}`;
-    if (this.theme) classes += ` theme-${this.theme}`;
-    return classes;
+  onLogout(): void {
+    this.logout.emit();
+    if (this.warningData?.onLogout) {
+      this.warningData.onLogout();
+    }
   }
 
-  getBackdropClasses(): string {
-    let classes = this.backdropClass || 'idle-warning-backdrop';
-    if (this.theme) classes += ` theme-${this.theme}`;
-    return classes;
+  formatTime(milliseconds: number): string {
+    const minutes = Math.floor(milliseconds / 60000);
+    const seconds = Math.floor((milliseconds % 60000) / 1000);
+    return `${minutes}:${seconds.toString().padStart(2, '0')}`;
+  }
+
+  getButtonClass(type: 'primary' | 'secondary'): string {
+    const cssClasses = this.cssClasses();
+    if (!cssClasses) return '';
+    
+    const baseClass = cssClasses.button || '';
+    const specificClass = type === 'primary' ? 
+      cssClasses.buttonPrimary || '' : 
+      cssClasses.buttonSecondary || '';
+    
+    return `${baseClass} ${specificClass}`.trim();
   }
 }

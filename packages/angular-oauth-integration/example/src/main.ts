@@ -1,44 +1,33 @@
 import { bootstrapApplication } from '@angular/platform-browser';
-import { provideRouter } from '@angular/router';
 import { provideHttpClient } from '@angular/common/http';
 import { provideStore } from '@ngrx/store';
 import { provideEffects } from '@ngrx/effects';
-import { provideAuth } from 'angular-auth-oidc-client';
+import { provideStoreDevtools } from '@ngrx/store-devtools';
+import { MinimalAppComponent } from '../minimal-app.component';
+// Step 2: Replace simple idle with real library store
+import { idleReducer, IDLE_FEATURE_KEY, IdleEffects } from '../../src/lib/store';
+// Step 3: Add OAuth integration
+import { OidcSecurityService } from 'angular-auth-oidc-client';
+import { MockOidcSecurityService } from './mock-oauth.service';
 
-import { AppComponent } from './app/app.component';
-import { routes } from './app/app.routes';
-import { idleReducer } from '@idle-detection/angular-oauth-integration';
-import { authReducer, AuthEffects, dashboardReducer, DashboardEffects, configReducer, ConfigEffects } from './app/store';
-import { environment } from './environments/environment';
-
-// Get OAuth configuration based on environment
-function getAuthConfig() {
-  const provider = environment.auth.provider;
-  const config = environment.auth[provider];
-  
-  console.log(`🔐 Using OAuth provider: ${provider.toUpperCase()}`);
-  console.log(`🌐 Authority: ${config.authority}`);
-  
-  return config;
-}
-
-bootstrapApplication(AppComponent, {
+bootstrapApplication(MinimalAppComponent, {
   providers: [
-    provideRouter(routes),
+    // Step 1: Add NgRx Store
+    provideStore({
+      // Step 2: Add real library idle reducer
+      [IDLE_FEATURE_KEY]: idleReducer
+    }),
+    provideEffects([IdleEffects]),
+    provideStoreDevtools({
+      maxAge: 25,
+      logOnly: false,
+      connectInZone: true
+    }),
     provideHttpClient(),
-    // Dynamic OAuth configuration based on environment
-    provideAuth({
-      config: getAuthConfig()
-    }),
-    provideStore({ 
-      idle: idleReducer,
-      auth: authReducer,
-      dashboard: dashboardReducer,
-      config: configReducer
-    }),
-    provideEffects([AuthEffects, DashboardEffects, ConfigEffects])
+    // Step 3: Add OAuth integration
+    {
+      provide: OidcSecurityService,
+      useClass: MockOidcSecurityService
+    }
   ]
-}).catch((err: any) => {
-  console.error('Bootstrap error:', err);
-  alert('Bootstrap error: ' + err.message);
-});
+}).catch(err => console.error(err));

@@ -15,8 +15,8 @@ export function getGlobalThis(): typeof globalThis {
   if (typeof window !== 'undefined') {
     return window as any;
   }
-  if (typeof global !== 'undefined') {
-    return global as any;
+  if (typeof globalThis !== 'undefined') {
+    return globalThis as any;
   }
   if (typeof self !== 'undefined') {
     return self as any;
@@ -88,7 +88,7 @@ export function createSSRSafeEventTarget(): EventTarget {
   return isPlatformBrowser() ? new EventTarget() : new SSRCompatibleEventTarget() as any;
 }
 
-export function createSSRSafeTimer(callback: () => void, delay: number): NodeJS.Timeout | number {
+export function createSSRSafeTimer(callback: () => void, delay: number): ReturnType<typeof setTimeout> {
   if (isPlatformBrowser()) {
     return setTimeout(callback, delay);
   } else {
@@ -96,11 +96,11 @@ export function createSSRSafeTimer(callback: () => void, delay: number): NodeJS.
   }
 }
 
-export function clearSSRSafeTimer(timerId: NodeJS.Timeout | number): void {
+export function clearSSRSafeTimer(timerId: ReturnType<typeof setTimeout>): void {
   clearTimeout(timerId as any);
 }
 
-export function createSSRSafeInterval(callback: () => void, delay: number): NodeJS.Timeout | number {
+export function createSSRSafeInterval(callback: () => void, delay: number): ReturnType<typeof setInterval> {
   if (isPlatformBrowser()) {
     return setInterval(callback, delay);
   } else {
@@ -108,6 +108,6 @@ export function createSSRSafeInterval(callback: () => void, delay: number): Node
   }
 }
 
-export function clearSSRSafeInterval(intervalId: NodeJS.Timeout | number): void {
+export function clearSSRSafeInterval(intervalId: ReturnType<typeof setInterval>): void {
   clearInterval(intervalId as any);
 }

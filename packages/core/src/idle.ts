@@ -8,9 +8,9 @@ export class Idle {
   private expiry: IdleExpiry | null = null;
   private keepalive: KeepaliveSvc | null = null;
   
-  private idleTimer: NodeJS.Timeout | null = null;
-  private warningTimer: NodeJS.Timeout | null = null;
-  private expiryCheckInterval: NodeJS.Timeout | null = null;
+  private idleTimer: ReturnType<typeof setTimeout> | null = null;
+  private warningTimer: ReturnType<typeof setTimeout> | null = null;
+  private expiryCheckInterval: ReturnType<typeof setInterval> | null = null;
   
   constructor(config: IdleConfig = {}) {
     this.config = {

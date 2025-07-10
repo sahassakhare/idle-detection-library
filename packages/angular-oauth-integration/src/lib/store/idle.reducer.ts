@@ -1,85 +1,130 @@
 import { createReducer, on } from '@ngrx/store';
-import { IdleState, initialIdleState } from './idle.state';
+import { IdleState } from '../types';
+import { initialIdleState } from './idle.state';
 import * as IdleActions from './idle.actions';
 
 export const idleReducer = createReducer(
   initialIdleState,
   
-  on(IdleActions.startWatching, (state) => ({
+  on(IdleActions.initializeIdle, (state, { config }) => ({
     ...state,
-    isWatching: true,
-    isTimedOut: false
+    config: { ...state.config, ...config }
   })),
-  
-  on(IdleActions.stopWatching, (state) => ({
+
+  on(IdleActions.updateConfig, (state, { config }) => ({
     ...state,
-    isWatching: false,
+    config: { ...state.config, ...config }
+  })),
+
+  on(IdleActions.userActivity, (state, { timestamp }) => ({
+    ...state,
+    lastActivity: timestamp,
     isIdle: false,
     isWarning: false,
-    remainingTime: 0
+    timeRemaining: 0
   })),
-  
+
+  on(IdleActions.startWarning, (state, { timeRemaining }) => ({
+    ...state,
+    isWarning: true,
+    isIdle: false,
+    timeRemaining
+  })),
+
+  on(IdleActions.updateWarningTime, (state, { timeRemaining }) => ({
+    ...state,
+    timeRemaining
+  })),
+
+  on(IdleActions.extendSession, (state) => ({
+    ...state,
+    isWarning: false,
+    isIdle: false,
+    timeRemaining: 0,
+    lastActivity: Date.now()
+  })),
+
+  on(IdleActions.startIdle, (state) => ({
+    ...state,
+    isIdle: true,
+    isWarning: false,
+    timeRemaining: 0
+  })),
+
   on(IdleActions.resetIdle, (state) => ({
     ...state,
     isIdle: false,
     isWarning: false,
-    isTimedOut: false,
-    lastActivity: new Date(),
-    remainingTime: 0
+    timeRemaining: 0,
+    lastActivity: Date.now()
   })),
-  
-  on(IdleActions.idleStarted, (state) => ({
+
+  on(IdleActions.refreshToken, (state) => ({
     ...state,
-    isIdle: true,
-    lastActivity: new Date()
+    tokenRefreshInProgress: true
   })),
-  
-  on(IdleActions.warningStarted, (state, { remainingTime }) => ({
-    ...state,
-    isWarning: true,
-    remainingTime
-  })),
-  
-  on(IdleActions.warningTick, (state, { remainingTime }) => ({
-    ...state,
-    remainingTime
-  })),
-  
-  on(IdleActions.userActivity, (state) => ({
-    ...state,
-    isIdle: false,
-    isWarning: false,
-    isTimedOut: false,
-    lastActivity: new Date(),
-    remainingTime: 0
-  })),
-  
-  on(IdleActions.timeout, (state) => ({
-    ...state,
-    isTimedOut: true,
-    isWarning: false,
-    remainingTime: 0
-  })),
-  
-  on(IdleActions.refreshTokenRequest, (state) => ({
-    ...state,
-    isRefreshingToken: true,
-    refreshTokenError: null
-  })),
-  
+
   on(IdleActions.refreshTokenSuccess, (state) => ({
     ...state,
-    isRefreshingToken: false,
-    refreshTokenError: null
+    tokenRefreshInProgress: false,
+    lastActivity: Date.now()
   })),
-  
-  on(IdleActions.refreshTokenFailure, (state, { error }) => ({
+
+  on(IdleActions.refreshTokenFailure, (state) => ({
     ...state,
-    isRefreshingToken: false,
-    refreshTokenError: error
+    tokenRefreshInProgress: false
   })),
-  
-  on(IdleActions.logoutSuccess, () => ({
-    ...initialIdleState
-  }))
+
+  on(IdleActions.setUserRole, (state, { role }) => {
+    const roleTimeouts = state.config.roleTimeouts?.[role];
+    const updatedConfig = roleTimeouts 
+      ? { 
+          ...state.config, 
+          idleTimeout: roleTimeouts.idle,
+          warningTimeout: roleTimeouts.warning
+        }
+      : state.config;
+
+    return {
+      ...state,
+      userRole: role,
+      config: updatedConfig
+    };
+  }),
+
+  on(IdleActions.setMultiTabActive, (state, { active }) => ({
+    ...state,
+    multiTabActive: active
+  })),
+
+  on(IdleActions.loadExternalConfigSuccess, (state, { config }) => ({
+    ...state,
+    config: { ...state.config, ...config }
+  })),
+
+  on(IdleActions.handleTabMessage, (state, { message }) => {
+    switch (message.type) {
+      case 'activity':
+        return {
+          ...state,
+          lastActivity: message.timestamp,
+          isIdle: false,
+          isWarning: false
+        };
+      case 'warning':
+        return {
+          ...state,
+          isWarning: true,
+          timeRemaining: message.data?.timeRemaining || 0
+        };
+      case 'logout':
+        return {
+          ...state,
+          isIdle: true,
+          isWarning: false
+        };
+      default:
+        return state;
+    }
+  })
 );

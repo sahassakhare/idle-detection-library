@@ -1,67 +1,41 @@
 {
   "name": "@idle-detection/angular-oauth-integration",
   "version": "1.0.0",
-  "description": "Angular integration for idle detection with OAuth support using NgRx Store",
+  "description": "Angular library for detecting user inactivity and managing OAuth session timeouts with NgRx Store",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
-  "files": [
-    "dist/**/*",
-    "README.md",
-    "LICENSE"
-  ],
   "scripts": {
     "build": "tsc",
     "test": "jest",
-    "example": "cd example && npm start",
-    "prepublishOnly": "npm run build"
-  },
-  "peerDependencies": {
-    "@angular/core": "^18.0.0 || ^19.0.0",
-    "@angular/common": "^18.0.0 || ^19.0.0",
-    "angular-auth-oidc-client": "^18.0.0 || ^19.0.0",
-    "rxjs": "^7.5.0",
-    "@idle-detection/core": "^1.0.0",
-    "@ngrx/store": "^18.0.0 || ^19.0.0",
-    "@ngrx/effects": "^18.0.0 || ^19.0.0"
-  },
-  "devDependencies": {
-    "@angular/core": "^18.0.0",
-    "@angular/common": "^18.0.0",
-    "angular-auth-oidc-client": "^18.0.0",
-    "rxjs": "^7.5.0",
-    "@ngrx/store": "^18.0.0",
-    "@ngrx/effects": "^18.0.0",
-    "typescript": "^5.4.0",
-    "jest": "^29.0.0",
-    "@types/jest": "^29.0.0"
+    "lint": "eslint src/**/*.ts"
   },
   "keywords": [
     "angular",
     "idle",
     "detection",
     "oauth",
-    "oidc",
-    "session",
-    "timeout",
-    "angular18",
     "ngrx",
-    "store",
-    "auth",
-    "authentication",
-    "angular-oauth-integration"
+    "timeout",
+    "session"
   ],
-  "author": "Sahas Sakhare <sahassakhare@users.noreply.github.com>",
+  "author": "",
   "license": "MIT",
-  "repository": {
-    "type": "git",
-    "url": "https://github.com/sahassakhare/idle-detection-library.git",
-    "directory": "packages/angular-oauth-integration"
+  "peerDependencies": {
+    "@angular/core": "^18.0.0",
+    "@angular/common": "^18.0.0",
+    "@ngrx/store": "^18.0.0",
+    "@ngrx/effects": "^18.0.0",
+    "angular-auth-oidc-client": "^18.0.0",
+    "@idle-detection/core": "^1.0.0"
   },
-  "bugs": {
-    "url": "https://github.com/sahassakhare/idle-detection-library/issues"
-  },
-  "homepage": "https://github.com/sahassakhare/idle-detection-library#readme",
-  "publishConfig": {
-    "access": "public"
+  "devDependencies": {
+    "@angular/core": "^18.0.0",
+    "@angular/common": "^18.0.0",
+    "@ngrx/store": "^18.0.0",
+    "@ngrx/effects": "^18.0.0",
+    "angular-auth-oidc-client": "^18.0.0",
+    "typescript": "^5.0.0",
+    "jest": "^29.0.0",
+    "@types/jest": "^29.0.0"
   }
 }

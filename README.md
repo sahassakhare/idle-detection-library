@@ -5,7 +5,7 @@ A comprehensive Angular library for detecting user inactivity and managing OAuth
 ## Features
 
 - **Angular 18+ Support** - Modern standalone components with signals
-- **OAuth Integration** - Seamless integration with `angular-auth-oidc-client`
+- **OAuth Integration** - Seamless integration with `angular-auth-oidc-client` 
 - **Style Agnostic** - Completely customizable CSS classes for any design system
 - **Multi-tab Coordination** - Synchronized idle detection across browser tabs
 - **Configurable Timeouts** - External JSON configuration support

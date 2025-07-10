@@ -13,7 +13,7 @@
     "declaration": false,
     "downlevelIteration": true,
     "experimentalDecorators": true,
-    "moduleResolution": "bundler",
+    "moduleResolution": "node",
     "importHelpers": true,
     "target": "ES2022",
     "module": "ES2022",
@@ -21,7 +21,15 @@
     "lib": [
       "ES2022",
       "dom"
-    ]
+    ],
+    "types": [
+      "node"
+    ],
+    "paths": {
+      "@idle-detection/angular-oauth-integration": ["../src/index.ts"],
+      "@idle-detection/angular-oauth-integration/*": ["../src/*"],
+      "@idle-detection/core": ["../../core/src/index.ts"]
+    }
   },
   "angularCompilerOptions": {
     "enableI18nLegacyMessageIdFormat": false,
