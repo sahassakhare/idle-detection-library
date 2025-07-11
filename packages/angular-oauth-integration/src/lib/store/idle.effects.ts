@@ -143,7 +143,7 @@ export class IdleEffects {
 
   startWarningTimer$ = createEffect(() =>
     this.actions$.pipe(
-      ofType(IdleActions.userActivity, IdleActions.resetIdle),
+      ofType(IdleActions.userActivity, IdleActions.resetIdle, IdleActions.extendSession),
       withLatestFrom(
         this.store.select(selectIdleTimeout),
         this.store.select(selectWarningTimeout)
@@ -307,10 +307,7 @@ export class IdleEffects {
   extendSession$ = createEffect(() =>
     this.actions$.pipe(
       ofType(IdleActions.extendSession),
-      map(() => {
-        console.log('⏰ Extending session - resetting idle detection');
-        return IdleActions.resetIdle();
-      })
-    )
+      tap(() => console.log('⏰ Extending session - timers will restart'))
+    ), { dispatch: false }
   );
 }

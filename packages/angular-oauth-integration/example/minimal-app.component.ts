@@ -18,7 +18,8 @@ import {
   startWarning,
   startIdle,
   resetIdle,
-  initializeIdle
+  initializeIdle,
+  extendSession
 } from '../src/lib/store';
 
 @Component({
@@ -307,6 +308,12 @@ export class MinimalAppComponent implements OnInit {
   ngOnInit(): void {
     console.log('✅ Idle state observables set up');
     
+    // Subscribe to warning state to automatically show dialog
+    this.isWarning$.subscribe(isWarning => {
+      console.log('⚠️ Warning state changed:', isWarning);
+      this.isWarningDialogVisible = isWarning;
+    });
+    
     // Initialize the idle detection with configuration
     this.store.dispatch(initializeIdle({
       config: {
@@ -368,10 +375,10 @@ export class MinimalAppComponent implements OnInit {
 
   onDialogExtendSession(): void {
     console.log('🔄 Session extended from dialog');
-    this.isWarningDialogVisible = false;
+    // Don't manually set isWarningDialogVisible = false here, let the state subscription handle it
     this.store.dispatch(userActivity({ timestamp: Date.now() }));
     // Also dispatch extend session action to properly reset idle state
-    this.store.dispatch({ type: '[Idle] Extend Session' });
+    this.store.dispatch(extendSession());
   }
 
   onDialogLogout(): void {
