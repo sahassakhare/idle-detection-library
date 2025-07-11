@@ -1,46 +1,53 @@
 import { createFeatureSelector, createSelector } from '@ngrx/store';
 import { IdleState } from '../types';
-import { IDLE_FEATURE_KEY } from './idle.state';
+import { IDLE_FEATURE_KEY, initialIdleState } from './idle.state';
 
+// Safe feature selector with fallback to initial state
 export const selectIdleState = createFeatureSelector<IdleState>(IDLE_FEATURE_KEY);
 
-export const selectIsIdle = createSelector(
+// Robust selector that ensures we always have a valid state
+export const selectSafeIdleState = createSelector(
   selectIdleState,
+  (state) => state ?? initialIdleState
+);
+
+export const selectIsIdle = createSelector(
+  selectSafeIdleState,
   (state) => state.isIdle
 );
 
 export const selectIsWarning = createSelector(
-  selectIdleState,
+  selectSafeIdleState,
   (state) => state.isWarning
 );
 
 export const selectTimeRemaining = createSelector(
-  selectIdleState,
+  selectSafeIdleState,
   (state) => state.timeRemaining
 );
 
 export const selectLastActivity = createSelector(
-  selectIdleState,
+  selectSafeIdleState,
   (state) => state.lastActivity
 );
 
 export const selectTokenRefreshInProgress = createSelector(
-  selectIdleState,
+  selectSafeIdleState,
   (state) => state.tokenRefreshInProgress
 );
 
 export const selectMultiTabActive = createSelector(
-  selectIdleState,
+  selectSafeIdleState,
   (state) => state.multiTabActive
 );
 
 export const selectUserRole = createSelector(
-  selectIdleState,
+  selectSafeIdleState,
   (state) => state.userRole
 );
 
 export const selectConfig = createSelector(
-  selectIdleState,
+  selectSafeIdleState,
   (state) => state.config
 );
 
