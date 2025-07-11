@@ -93,12 +93,32 @@ import {
         <p><strong>Current Status:</strong> All features are now working! 🎉</p>
       </div>
       
-      <!-- Step 4: Real Library Warning Dialog -->
+      <!-- Additional Test Buttons -->
+      <div class="controls">
+        <h3>🧪 Test Features</h3>
+        <button (click)="simulateRelogin()" class="test-button">
+          🔐 Test Relogin (fixes idle detection after logout)
+        </button>
+      </div>
+      
+      <!-- Enhanced Warning Dialog with All Features -->
       <idle-warning-dialog
         *ngIf="isWarningDialogVisible"
         [warningData]="getWarningData()"
-        titleText="Session Timeout Warning"
-        messageText="Your session will expire due to inactivity."
+        dialogTitle="⚠️ Session Timeout Warning"
+        dialogMessage="Your session will expire soon due to inactivity. Please extend your session to continue working."
+        extendButtonText="Extend Session"
+        logoutButtonText="Logout Now"
+        [showProgressBar]="true"
+        [showCountdown]="true"
+        [theme]="'default'"
+        [size]="'medium'"
+        [backdropClose]="false"
+        backdropClass="custom-backdrop"
+        dialogClass="custom-dialog"
+        actionsClass="custom-actions"
+        primaryButtonClass="btn btn-primary custom-primary"
+        secondaryButtonClass="btn btn-secondary custom-secondary"
         (extendSession)="onDialogExtendSession()"
         (logout)="onDialogLogout()"
       ></idle-warning-dialog>
@@ -211,6 +231,52 @@ import {
       background: rgba(255, 255, 255, 0.3);
       transform: translateY(-1px);
     }
+
+    /* Test button styles */
+    .test-button {
+      background: #8b5cf6;
+      color: white;
+      padding: 10px 20px;
+      border: none;
+      border-radius: 6px;
+      cursor: pointer;
+      font-weight: 500;
+      margin: 10px 0;
+      transition: background 0.2s ease;
+    }
+
+    .test-button:hover {
+      background: #7c3aed;
+    }
+
+    /* Custom dialog styles */
+    .custom-backdrop {
+      background: rgba(0, 0, 0, 0.7) !important;
+      backdrop-filter: blur(3px) !important;
+    }
+
+    .custom-dialog {
+      border: 2px solid #3b82f6 !important;
+      box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04) !important;
+    }
+
+    .custom-actions {
+      justify-content: center !important;
+    }
+
+    .custom-primary {
+      background: linear-gradient(to right, #3b82f6, #1d4ed8) !important;
+      padding: 12px 24px !important;
+      font-weight: 600 !important;
+      border-radius: 8px !important;
+    }
+
+    .custom-secondary {
+      background: linear-gradient(to right, #6b7280, #374151) !important;
+      padding: 12px 24px !important;
+      font-weight: 600 !important;
+      border-radius: 8px !important;
+    }
   `]
 })
 export class MinimalAppComponent implements OnInit {
@@ -303,13 +369,32 @@ export class MinimalAppComponent implements OnInit {
   onDialogExtendSession(): void {
     console.log('🔄 Session extended from dialog');
     this.isWarningDialogVisible = false;
-    this.simulateActivity();
+    this.store.dispatch(userActivity({ timestamp: Date.now() }));
+    // Also dispatch extend session action to properly reset idle state
+    this.store.dispatch({ type: '[Idle] Extend Session' });
   }
 
   onDialogLogout(): void {
     console.log('🚪 Logout triggered from dialog');
     this.isWarningDialogVisible = false;
-    this.logout();
+    this.store.dispatch({ type: '[Idle] User Logged Out' });
+    // Simulate logout by calling mock service
+    (this.oidcSecurityService as any).logoff();
+  }
+
+  // Method to simulate relogin for testing
+  simulateRelogin(): void {
+    console.log('🔐 Simulating relogin...');
+    // First logout
+    this.store.dispatch({ type: '[Idle] User Logged Out' });
+    (this.oidcSecurityService as any).logoff();
+    
+    // Then login after a short delay
+    setTimeout(() => {
+      (this.oidcSecurityService as any).login();
+      this.store.dispatch({ type: '[Idle] User Authenticated' });
+      console.log('✅ User re-authenticated - idle detection should restart');
+    }, 1000);
   }
 
   // Helper methods for type-safe property access

@@ -7,8 +7,7 @@ import {
   merge, 
   fromEvent, 
   EMPTY, 
-  of,
-  Observable 
+  of 
 } from 'rxjs';
 import { 
   map, 
@@ -61,64 +60,21 @@ export class IdleEffects {
     }
   }
 
-  initializeIdle$ = createEffect(() =>
-    this.actions$.pipe(
-      ofType(IdleActions.initializeIdle),
-      map(() => IdleActions.startIdleDetection())
-    )
-  );
-
   startIdleDetection$ = createEffect(() =>
     this.actions$.pipe(
       ofType(IdleActions.startIdleDetection),
       withLatestFrom(this.store.select(selectConfig)),
       switchMap(([, config]) => {
-        // Check if we're in a browser environment
-        if (typeof document === 'undefined' || typeof window === 'undefined') {
-          console.warn('Idle detection not available in server-side rendering');
-          return EMPTY;
-        }
+        const activityStreams = this.activityEvents.map(event =>
+          fromEvent(document, event).pipe(
+            map(() => Date.now())
+          )
+        );
 
-        try {
-          const activityStreams = this.activityEvents
-            .map(event => {
-              try {
-                const eventStream = fromEvent(document, event);
-                if (!eventStream || typeof eventStream.pipe !== 'function') {
-                  console.warn(`Invalid event stream for ${event}`);
-                  return null;
-                }
-                return eventStream.pipe(
-                  map(() => Date.now()),
-                  catchError(error => {
-                    console.error(`Error listening to ${event} event:`, error);
-                    return EMPTY;
-                  })
-                );
-              } catch (error) {
-                console.error(`Failed to create event listener for ${event}:`, error);
-                return null;
-              }
-            })
-            .filter((stream): stream is Observable<number> => stream !== null); // Type-safe filter
-
-          if (activityStreams.length === 0) {
-            console.warn('No valid activity streams available');
-            return EMPTY;
-          }
-
-          return merge(...activityStreams).pipe(
-            map(timestamp => IdleActions.userActivity({ timestamp })),
-            takeUntil(this.actions$.pipe(ofType(IdleActions.stopIdleDetection))),
-            catchError(error => {
-              console.error('Error in idle detection:', error);
-              return EMPTY;
-            })
-          );
-        } catch (error) {
-          console.error('Failed to setup idle detection:', error);
-          return EMPTY;
-        }
+        return merge(...activityStreams).pipe(
+          map(timestamp => IdleActions.userActivity({ timestamp })),
+          takeUntil(this.actions$.pipe(ofType(IdleActions.stopIdleDetection)))
+        );
       })
     )
   );
@@ -188,24 +144,10 @@ export class IdleEffects {
       switchMap(() => {
         this.store.dispatch(IdleActions.refreshToken());
         
-        // Check if the service and method exist
-        if (this.oidcSecurityService && 
-            typeof this.oidcSecurityService.forceRefreshSession === 'function') {
-          const refreshResult = this.oidcSecurityService.forceRefreshSession();
-          
-          // Ensure the result is an Observable
-          if (refreshResult && typeof refreshResult.pipe === 'function') {
-            return refreshResult.pipe(
-              map(() => IdleActions.refreshTokenSuccess()),
-              catchError(error => of(IdleActions.refreshTokenFailure({ error })))
-            );
-          }
-        }
-        
-        // Fallback if service/method doesn't exist or doesn't return Observable
-        return of(IdleActions.refreshTokenFailure({ 
-          error: 'OAuth service not available or method not implemented' 
-        }));
+        return this.oidcSecurityService.forceRefreshSession().pipe(
+          map(() => IdleActions.refreshTokenSuccess()),
+          catchError(error => of(IdleActions.refreshTokenFailure({ error })))
+        );
       })
     )
   );
@@ -224,22 +166,10 @@ export class IdleEffects {
         }
       }),
       switchMap(() => {
-        // Check if the service and method exist
-        if (this.oidcSecurityService && 
-            typeof this.oidcSecurityService.logoff === 'function') {
-          const logoffResult = this.oidcSecurityService.logoff();
-          
-          // Ensure the result is an Observable
-          if (logoffResult && typeof logoffResult.pipe === 'function') {
-            return logoffResult.pipe(
-              map(() => IdleActions.resetIdle()),
-              catchError(() => of(IdleActions.resetIdle()))
-            );
-          }
-        }
-        
-        // Fallback if service/method doesn't exist or doesn't return Observable
-        return of(IdleActions.resetIdle());
+        return this.oidcSecurityService.logoff().pipe(
+          map(() => IdleActions.resetIdle()),
+          catchError(() => of(IdleActions.resetIdle()))
+        );
       })
     )
   );
@@ -270,46 +200,6 @@ export class IdleEffects {
           default:
             return EMPTY;
         }
-      })
-    )
-  );
-
-  userAuthenticated$ = createEffect(() =>
-    this.actions$.pipe(
-      ofType(IdleActions.userAuthenticated, IdleActions.restartIdleDetection),
-      map(() => {
-        console.log('🔄 Restarting idle detection after authentication');
-        return IdleActions.resetIdle();
-      })
-    )
-  );
-
-  resetAndRestart$ = createEffect(() =>
-    this.actions$.pipe(
-      ofType(IdleActions.resetIdle),
-      map(() => {
-        console.log('🚀 Starting idle detection');
-        return IdleActions.startIdleDetection();
-      })
-    )
-  );
-
-  userLoggedOut$ = createEffect(() =>
-    this.actions$.pipe(
-      ofType(IdleActions.userLoggedOut),
-      map(() => {
-        console.log('🛑 Stopping idle detection - user logged out');
-        return IdleActions.stopIdleDetection();
-      })
-    )
-  );
-
-  extendSession$ = createEffect(() =>
-    this.actions$.pipe(
-      ofType(IdleActions.extendSession),
-      map(() => {
-        console.log('⏰ Extending session - resetting idle detection');
-        return IdleActions.resetIdle();
       })
     )
   );

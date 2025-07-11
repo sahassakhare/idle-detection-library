@@ -1,0 +1,172 @@
+import { Injectable, inject, OnDestroy, Inject, Optional } from '@angular/core';
+import { Store } from '@ngrx/store';
+import { OidcSecurityService } from 'angular-auth-oidc-client';
+import { Observable, Subject, combineLatest } from 'rxjs';
+import { takeUntil, map, filter, distinctUntilChanged, take } from 'rxjs/operators';
+import { Idle, IdleEvent, DEFAULT_INTERRUPTSOURCES } from '@idle-detection/core';
+import { IdleOAuthConfig, IdleState, IdleStatus, IdleWarningData } from './types';
+import { IDLE_OAUTH_CONFIG } from './providers';
+import * as IdleActions from './store/idle.actions';
+import { 
+  selectIdleState, 
+  selectIsIdle, 
+  selectIsWarning, 
+  selectTimeRemaining,
+  selectConfig,
+  selectIdleStatus
+} from './store/idle.selectors';
+
+@Injectable({
+  providedIn: 'root'
+})
+export class IdleOAuthService implements OnDestroy {
+  private store = inject(Store);
+  private oidcSecurityService = inject(OidcSecurityService);
+  private destroy$ = new Subject<void>();
+  private idleManager: Idle;
+
+  public readonly idleState$ = this.store.select(selectIdleState);
+  public readonly isIdle$ = this.store.select(selectIsIdle);
+  public readonly isWarning$ = this.store.select(selectIsWarning);
+  public readonly timeRemaining$ = this.store.select(selectTimeRemaining);
+  public readonly config$ = this.store.select(selectConfig);
+  public readonly idleStatus$ = this.store.select(selectIdleStatus);
+
+  constructor(
+    @Optional() @Inject(IDLE_OAUTH_CONFIG) private config: IdleOAuthConfig | null
+  ) {
+    this.idleManager = new Idle();
+    this.setupAuthenticationWatcher();
+    
+    if (this.config) {
+      this.initialize(this.config);
+    }
+  }
+
+  initialize(config: IdleOAuthConfig): void {
+    this.store.dispatch(IdleActions.initializeIdle({ config }));
+    
+    if (config.configUrl) {
+      this.store.dispatch(IdleActions.loadExternalConfig({ configUrl: config.configUrl }));
+    }
+
+    // Configure idle manager with timeouts
+    this.idleManager.setIdleTimeout(config.idleTimeout);
+    this.idleManager.setWarningTimeout(config.warningTimeout);
+    
+    // Set up interrupt sources
+    this.idleManager.setInterrupts(DEFAULT_INTERRUPTSOURCES);
+
+    this.setupIdleDetection();
+  }
+
+  start(): void {
+    this.store.dispatch(IdleActions.startIdleDetection());
+    this.idleManager.watch();
+  }
+
+  stop(): void {
+    this.store.dispatch(IdleActions.stopIdleDetection());
+    this.idleManager.stop();
+  }
+
+  extendSession(): void {
+    this.store.dispatch(IdleActions.extendSession());
+  }
+
+  logout(): void {
+    this.store.dispatch(IdleActions.logout());
+  }
+
+  updateConfig(config: Partial<IdleOAuthConfig>): void {
+    this.store.dispatch(IdleActions.updateConfig({ config }));
+  }
+
+  setUserRole(role: string): void {
+    this.store.dispatch(IdleActions.setUserRole({ role }));
+  }
+
+  getWarningData(): Observable<IdleWarningData> {
+    return combineLatest([
+      this.timeRemaining$,
+      this.config$
+    ]).pipe(
+      map(([timeRemaining, config]) => ({
+        timeRemaining,
+        timeRemaining$: this.timeRemaining$,
+        onExtendSession: () => this.extendSession(),
+        onLogout: () => this.logout(),
+        cssClasses: config.customCssClasses
+      }))
+    );
+  }
+
+  getCurrentWarningData(): IdleWarningData | null {
+    let currentTimeRemaining = 0;
+    let currentConfig: any = null;
+    
+    this.timeRemaining$.pipe(take(1)).subscribe(time => currentTimeRemaining = time);
+    this.config$.pipe(take(1)).subscribe(config => currentConfig = config);
+    
+    return {
+      timeRemaining: currentTimeRemaining,
+      timeRemaining$: this.timeRemaining$,
+      onExtendSession: () => this.extendSession(),
+      onLogout: () => this.logout(),
+      cssClasses: currentConfig?.customCssClasses
+    };
+  }
+
+  private setupAuthenticationWatcher(): void {
+    this.oidcSecurityService.isAuthenticated$
+      .pipe(
+        distinctUntilChanged(),
+        takeUntil(this.destroy$)
+      )
+      .subscribe(({ isAuthenticated }) => {
+        if (isAuthenticated) {
+          this.start();
+        } else {
+          this.stop();
+        }
+      });
+
+    this.oidcSecurityService.userData$
+      .pipe(
+        filter(userData => !!userData),
+        map(userData => {
+          const userDataAny = userData as any;
+          return userDataAny?.role || userDataAny?.userRole || userDataAny?.roles?.[0] || 'default';
+        }),
+        distinctUntilChanged(),
+        takeUntil(this.destroy$)
+      )
+      .subscribe(role => {
+        this.setUserRole(role);
+      });
+  }
+
+  private setupIdleDetection(): void {
+    this.idleManager.on(IdleEvent.IDLE_START, () => {
+      this.store.dispatch(IdleActions.startWarning({ timeRemaining: 0 }));
+    });
+
+    this.idleManager.on(IdleEvent.TIMEOUT, () => {
+      this.store.dispatch(IdleActions.startIdle());
+    });
+
+    this.idleManager.on(IdleEvent.IDLE_END, () => {
+      this.store.dispatch(IdleActions.resetIdle());
+    });
+
+    this.idleManager.on(IdleEvent.INTERRUPT, () => {
+      this.store.dispatch(IdleActions.userActivity({ timestamp: Date.now() }));
+    });
+  }
+
+  ngOnDestroy(): void {
+    this.destroy$.next();
+    this.destroy$.complete();
+    this.idleManager.stop();
+  }
+}

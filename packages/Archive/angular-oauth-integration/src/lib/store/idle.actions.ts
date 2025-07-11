@@ -76,9 +76,3 @@ export const loadExternalConfigFailure = createAction(
   '[Idle] Load External Config Failure',
   props<{ error: any }>()
 );
-
-export const userAuthenticated = createAction('[Idle] User Authenticated');
-
-export const userLoggedOut = createAction('[Idle] User Logged Out');
-
-export const restartIdleDetection = createAction('[Idle] Restart Detection');
