@@ -17,7 +17,8 @@ import {
   catchError,
   tap,
   filter,
-  mergeMap
+  mergeMap,
+  delay
 } from 'rxjs/operators';
 import { HttpClient } from '@angular/common/http';
 import * as IdleActions from './idle.actions';
@@ -122,7 +123,10 @@ export class IdleEffects {
   userActivity$ = createEffect(() =>
     this.actions$.pipe(
       ofType(IdleActions.userActivity),
-      withLatestFrom(this.store.select(selectMultiTabCoordination)),
+      withLatestFrom(
+        this.store.select(selectMultiTabCoordination),
+        this.store.select(selectIsWarning)
+      ),
       tap(([{ timestamp }, multiTabCoordination]) => {
         if (multiTabCoordination && this.broadcastChannel) {
           const message: TabCoordinationMessage = {
@@ -133,6 +137,8 @@ export class IdleEffects {
           this.broadcastChannel.postMessage(message);
         }
       }),
+      // CRITICAL FIX: Don't auto-reset during warning period to prevent conflicts
+      filter(([, , isWarning]) => !isWarning),
       map(() => IdleActions.resetIdle())
     )
   );
@@ -174,7 +180,23 @@ export class IdleEffects {
   logout$ = createEffect(() =>
     this.actions$.pipe(
       ofType(IdleActions.startIdle, IdleActions.logout),
-      withLatestFrom(this.store.select(selectMultiTabCoordination)),
+      withLatestFrom(
+        this.store.select(selectMultiTabCoordination),
+        this.store.select(selectIsWarning)
+      ),
+      // CRITICAL FIX: Add delay to prevent immediate logout during extend session
+      // This gives the extend session process time to complete
+      tap(([action, , isWarning]) => {
+        console.log(`🚨 Logout effect triggered by ${action.type}, isWarning: ${isWarning}`);
+      }),
+      // Add small delay to allow extend session to complete
+      switchMap(([action, multiTabCoordination, isWarning]) => {
+        const stream = of([action, multiTabCoordination]);
+        if (isWarning) {
+          return stream.pipe(delay(100));
+        }
+        return stream;
+      }),
       tap(([, multiTabCoordination]) => {
         if (multiTabCoordination && this.broadcastChannel) {
           const message: TabCoordinationMessage = {
@@ -185,6 +207,7 @@ export class IdleEffects {
         }
       }),
       switchMap(() => {
+        console.log('🚪 Executing logout');
         // Check if the service and method exist
         if (this.oidcSecurityService && 
             typeof this.oidcSecurityService.logoff === 'function') {
@@ -248,8 +271,12 @@ export class IdleEffects {
   resetAndRestart$ = createEffect(() =>
     this.actions$.pipe(
       ofType(IdleActions.resetIdle),
+      withLatestFrom(this.store.select(selectIsWarning)),
+      // CRITICAL FIX: Only restart detection if NOT in warning state
+      // During extend session, the service handles restarting
+      filter(([, isWarning]) => !isWarning),
       map(() => {
-        console.log('🚀 Starting idle detection');
+        console.log('🚀 Starting idle detection (from effects)');
         return IdleActions.startIdleDetection();
       })
     )
@@ -268,7 +295,11 @@ export class IdleEffects {
   extendSession$ = createEffect(() =>
     this.actions$.pipe(
       ofType(IdleActions.extendSession),
-      tap(() => console.log('⏰ Extending session - timers will restart'))
+      tap(() => {
+        console.log('⏰ NgRx: Extend session action received');
+        console.log('   - Service will handle timer management');
+        console.log('   - Effects will be temporarily suppressed');
+      })
     ), { dispatch: false }
   );
 }

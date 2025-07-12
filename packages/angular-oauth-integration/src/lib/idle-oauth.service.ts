@@ -93,9 +93,9 @@ export class IdleOAuthService implements OnDestroy {
     console.log('   3. Updating NgRx state...');
     this.store.dispatch(IdleActions.extendSession());
     
-    // 4. Reconfigure idle manager with fresh settings
+    // 4. Reconfigure idle manager with fresh settings (SYNCHRONOUSLY)
     console.log('   4. Reconfiguring idle manager...');
-    this.reconfigureIdleManager();
+    this.reconfigureIdleManagerSync();
     
     // 5. Start fresh idle detection cycle
     console.log('   5. Starting fresh idle detection...');
@@ -119,6 +119,31 @@ export class IdleOAuthService implements OnDestroy {
       // Reconfigure interrupt sources to ensure clean setup
       this.idleManager.setInterrupts(DEFAULT_INTERRUPTSOURCES);
     });
+  }
+
+  private reconfigureIdleManagerSync(): void {
+    // CRITICAL FIX: Synchronous reconfiguration for extend session
+    // Get current config synchronously from the store
+    let currentConfig: any = null;
+    this.config$.pipe(take(1)).subscribe(config => {
+      currentConfig = config;
+    });
+
+    if (currentConfig) {
+      console.log('🔧 Reconfiguring idle manager SYNCHRONOUSLY with timeouts:', {
+        idle: currentConfig.idleTimeout,
+        warning: currentConfig.warningTimeout
+      });
+      
+      // Ensure timeouts are properly set
+      this.idleManager.setIdleTimeout(currentConfig.idleTimeout);
+      this.idleManager.setWarningTimeout(currentConfig.warningTimeout);
+      
+      // Reconfigure interrupt sources to ensure clean setup
+      this.idleManager.setInterrupts(DEFAULT_INTERRUPTSOURCES);
+    } else {
+      console.error('❌ Could not get current config for synchronous reconfiguration');
+    }
   }
 
   logout(): void {
@@ -220,28 +245,31 @@ export class IdleOAuthService implements OnDestroy {
   private startWarningCountdown(warningTimeout: number): void {
     console.log(`🔔 Starting warning countdown: ${warningTimeout}ms (${Math.floor(warningTimeout / 1000)}s)`);
     
-    // Ensure any existing countdown is stopped first
+    // CRITICAL FIX: Ensure any existing countdown is stopped first
     this.countdownTimer$.next();
     
-    timer(0, 1000).pipe(
-      map(tick => Math.max(0, warningTimeout - (tick * 1000))),
-      tap(remaining => {
-        console.log(`⏱️ Warning countdown: ${Math.floor(remaining / 1000)}s remaining`);
-        if (remaining > 0) {
-          this.store.dispatch(IdleActions.updateWarningTime({ timeRemaining: remaining }));
-        } else {
-          console.log('⏰ Warning countdown complete - letting core manager handle timeout');
-          // Time's up - let the core idle manager handle the timeout
-          // Don't dispatch startIdle here as it will conflict with the core manager
-        }
-      }),
-      takeUntil(this.countdownTimer$),
-      takeUntil(this.destroy$)
-    ).subscribe({
-      next: () => {}, // Timer tick
-      complete: () => console.log('🔕 Warning countdown stopped'),
-      error: (err) => console.error('❌ Warning countdown error:', err)
-    });
+    // Add a small delay to ensure the previous timer is fully stopped
+    setTimeout(() => {
+      timer(0, 1000).pipe(
+        map(tick => Math.max(0, warningTimeout - (tick * 1000))),
+        tap(remaining => {
+          console.log(`⏱️ Warning countdown: ${Math.floor(remaining / 1000)}s remaining`);
+          if (remaining > 0) {
+            this.store.dispatch(IdleActions.updateWarningTime({ timeRemaining: remaining }));
+          } else {
+            console.log('⏰ Warning countdown complete - letting core manager handle timeout');
+            // Time's up - let the core idle manager handle the timeout
+            // Don't dispatch startIdle here as it will conflict with the core manager
+          }
+        }),
+        takeUntil(this.countdownTimer$),
+        takeUntil(this.destroy$)
+      ).subscribe({
+        next: () => {}, // Timer tick
+        complete: () => console.log('🔕 Warning countdown stopped'),
+        error: (err) => console.error('❌ Warning countdown error:', err)
+      });
+    }, 10); // Small delay to ensure previous timer cleanup
   }
 
   ngOnDestroy(): void {
