@@ -86,10 +86,11 @@ export class IdleOAuthService implements OnDestroy {
   extendSession(): void {
     // CRITICAL: Set flag to prevent any logout during extend session
     this.isExtendingSession = true;
+    console.log(`🔒 PROTECTION ACTIVATED - isExtendingSession: ${this.isExtendingSession}`);
     
     this.extendSessionCount++;
     const timestamp = new Date().toISOString();
-    console.log(`🔄 [${timestamp}] BULLETPROOF EXTEND SESSION (Attempt #${this.extendSessionCount})...`);
+    console.log(`🔄 [${timestamp}] EXTEND SESSION (Attempt #${this.extendSessionCount})...`);
     
     try {
       // 1. Stop all active timers and processes completely
@@ -111,7 +112,7 @@ export class IdleOAuthService implements OnDestroy {
       console.log('   5. Starting fresh idle detection...');
       this.idleManager.watch();
       
-      console.log(`✅ [${timestamp}] BULLETPROOF EXTEND SESSION completed (Attempt #${this.extendSessionCount})`);
+      console.log(`✅ [${timestamp}] EXTEND SESSION completed (Attempt #${this.extendSessionCount})`);
       
     } catch (error) {
       console.error('❌ Error during extend session:', error);
@@ -120,7 +121,7 @@ export class IdleOAuthService implements OnDestroy {
       setTimeout(() => {
         this.isExtendingSession = false;
         console.log('🔓 Extend session flag cleared - normal operations resumed');
-      }, 500); // Small delay to ensure all operations complete
+      }, 2000); // Longer delay to ensure all operations complete and any queued events are handled
     }
   }
 
@@ -249,6 +250,7 @@ export class IdleOAuthService implements OnDestroy {
 
     this.idleManager.on(IdleEvent.TIMEOUT, () => {
       // CRITICAL: Don't trigger logout if we're in the middle of extending session
+      console.log(`🔍 TIMEOUT event fired - isExtendingSession: ${this.isExtendingSession}`);
       if (this.isExtendingSession) {
         console.log('🛡️ TIMEOUT blocked - extend session in progress');
         return;
