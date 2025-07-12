@@ -100,9 +100,9 @@ export class IdleOAuthService implements OnDestroy {
       console.log('   2. Stopping idle manager completely...');
       this.idleManager.stop(); // Complete stop - clears all timers and interrupts
       
-      // 3. Update NgRx state
-      console.log('   3. Updating NgRx state...');
-      this.store.dispatch(IdleActions.extendSession());
+      // 3. Reset idle state (bypass extendSession action to avoid effects conflict)
+      console.log('   3. Resetting idle state directly...');
+      this.store.dispatch(IdleActions.resetIdle());
       
       // 4. Reconfigure idle manager with fresh settings (SYNCHRONOUSLY)
       console.log('   4. Reconfiguring idle manager...');

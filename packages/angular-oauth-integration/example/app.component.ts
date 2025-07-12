@@ -104,8 +104,10 @@ export class AppComponent implements OnInit, OnDestroy {
       this.showWarning = isWarning;
       
       if (isWarning) {
-        // Get current warning data (including reactive timeRemaining stream)
+        // Always refresh warning data to ensure callbacks are current
+        console.log('🔄 Refreshing warningData for dialog');
         this.warningData = this.idleOAuthService.getCurrentWarningData()!;
+        console.log('🔍 Fresh warningData:', this.warningData);
       }
     });
   }
