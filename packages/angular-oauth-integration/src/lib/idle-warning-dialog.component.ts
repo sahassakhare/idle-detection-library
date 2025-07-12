@@ -16,6 +16,7 @@ import { takeUntil, map, startWith } from 'rxjs/operators';
 import { Store } from '@ngrx/store';
 import { IdleWarningData } from './types';
 import { selectTimeRemaining, selectIsWarning } from './store/idle.selectors';
+import { IdleOAuthService } from './idle-oauth.service';
 
 @Component({
   selector: 'idle-warning-dialog',
@@ -366,6 +367,7 @@ export class IdleWarningDialogComponent implements OnInit, OnDestroy {
 
   private destroy$ = new Subject<void>();
   private store = inject(Store);
+  private idleOAuthService = inject(IdleOAuthService);
   
   timeRemaining = signal(0);
   cssClasses = signal<any>(null);
@@ -447,13 +449,17 @@ export class IdleWarningDialogComponent implements OnInit, OnDestroy {
     console.log('🔍 DEBUG: warningData =', this.warningData);
     console.log('🔍 DEBUG: onExtendSession exists =', !!this.warningData?.onExtendSession);
     
-    // Call service method first (most important)
+    // APPROACH 1: Try warningData callback first
     if (this.warningData?.onExtendSession) {
       console.log('🔄 Calling warningData.onExtendSession()');
       this.warningData.onExtendSession();
     } else {
       console.log('⚠️ WARNING: warningData.onExtendSession is not available');
       console.log('⚠️ WARNING: warningData =', this.warningData);
+      
+      // APPROACH 2: Direct service call as backup
+      console.log('🔄 BACKUP: Calling service directly');
+      this.idleOAuthService.extendSession();
     }
     
     // Then emit to parent component
