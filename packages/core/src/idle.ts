@@ -10,6 +10,7 @@ export class Idle {
   
   private idleTimer: ReturnType<typeof setTimeout> | null = null;
   private warningTimer: ReturnType<typeof setTimeout> | null = null;
+  private timeoutTimer: ReturnType<typeof setTimeout> | null = null;
   private expiryCheckInterval: ReturnType<typeof setInterval> | null = null;
   
   constructor(config: IdleConfig = {}) {
@@ -225,18 +226,20 @@ export class Idle {
   }
   
   private startWarningTimer(): void {
+    // Start warning immediately when idle timeout is reached
+    this.state.isWarning = true;
+    this.emit(IdleEvent.WARNING_START, this.state);
+    
+    // Set timer for the warning duration - if no action, trigger timeout
     this.warningTimer = setTimeout(() => {
-      this.handleWarning();
+      this.handleTimeout();
     }, this.config.warningTimeout);
   }
   
   private handleWarning(): void {
+    // This method is no longer needed as warning logic is in startWarningTimer
     this.state.isWarning = true;
     this.emit(IdleEvent.WARNING_START, this.state);
-    
-    setTimeout(() => {
-      this.handleTimeout();
-    }, 0);
   }
   
   private handleTimeout(): void {
@@ -270,6 +273,11 @@ export class Idle {
     if (this.warningTimer) {
       clearTimeout(this.warningTimer);
       this.warningTimer = null;
+    }
+    
+    if (this.timeoutTimer) {
+      clearTimeout(this.timeoutTimer);
+      this.timeoutTimer = null;
     }
     
     if (this.expiryCheckInterval) {
