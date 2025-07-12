@@ -96,9 +96,15 @@ extendSession(): void {
   this.countdownTimer$.next(); // Stop any active countdown
   this.store.dispatch(IdleActions.extendSession());
   this.idleManager.reset(); // Reset the core idle manager
+  this.idleManager.watch(); // Restart idle detection
   console.log('✅ Session extended successfully');
 }
 ```
+
+**Critical Addition:** The `this.idleManager.watch()` call was essential because:
+- `reset()` clears timers and emits `IDLE_END` but doesn't restart monitoring
+- `watch()` restarts the idle timer cycle for the next detection period
+- Without this, the first extend session would not properly restart idle detection
 
 ## Key Improvements
 

@@ -76,6 +76,7 @@ export class IdleOAuthService implements OnDestroy {
     this.countdownTimer$.next(); // Stop any active countdown
     this.store.dispatch(IdleActions.extendSession());
     this.idleManager.reset(); // Reset the core idle manager
+    this.idleManager.watch(); // Restart idle detection
     console.log('✅ Session extended successfully');
   }
 
