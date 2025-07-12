@@ -1,4 +1,4 @@
-import { KeepaliveSvc } from '@idle-detection/core';
+import type { KeepaliveSvc } from '@idle-detection/core';
 
 export interface KeepaliveConfig {
   interval?: number;
@@ -14,14 +14,13 @@ export interface KeepaliveConfig {
   onSuccess?: (response: Response) => void;
 }
 
-export class HttpKeepalive extends KeepaliveSvc {
+export class HttpKeepalive implements KeepaliveSvc {
   private config: Required<KeepaliveConfig>;
   private intervalId: NodeJS.Timeout | null = null;
-  private isRunning = false;
+  private _isRunning = false;
   private lastPingTime: Date | null = null;
   
   constructor(config: KeepaliveConfig) {
-    super();
     this.config = {
       interval: config.interval || 5 * 60 * 1000, // 5 minutes
       url: config.url || '/keepalive',
@@ -38,20 +37,20 @@ export class HttpKeepalive extends KeepaliveSvc {
   }
   
   start(): void {
-    if (this.isRunning) {
+    if (this._isRunning) {
       return;
     }
     
-    this.isRunning = true;
+    this._isRunning = true;
     this.scheduleNextPing();
   }
   
   stop(): void {
-    if (!this.isRunning) {
+    if (!this._isRunning) {
       return;
     }
     
-    this.isRunning = false;
+    this._isRunning = false;
     if (this.intervalId) {
       clearTimeout(this.intervalId);
       this.intervalId = null;
@@ -59,7 +58,7 @@ export class HttpKeepalive extends KeepaliveSvc {
   }
   
   ping(): void {
-    if (!this.isRunning) {
+    if (!this._isRunning) {
       return;
     }
     
@@ -76,7 +75,7 @@ export class HttpKeepalive extends KeepaliveSvc {
   }
   
   isRunning(): boolean {
-    return this.isRunning;
+    return this._isRunning;
   }
   
   getLastPingTime(): Date | null {
@@ -85,7 +84,7 @@ export class HttpKeepalive extends KeepaliveSvc {
   
   setInterval(interval: number): void {
     this.config.interval = interval;
-    if (this.isRunning) {
+    if (this._isRunning) {
       this.stop();
       this.start();
     }
@@ -100,7 +99,7 @@ export class HttpKeepalive extends KeepaliveSvc {
   }
   
   private scheduleNextPing(): void {
-    if (!this.isRunning) {
+    if (!this._isRunning) {
       return;
     }
     
@@ -161,10 +160,10 @@ export class HttpKeepalive extends KeepaliveSvc {
   }
 }
 
-export class WebSocketKeepalive extends KeepaliveSvc {
+export class WebSocketKeepalive implements KeepaliveSvc {
   private websocket: WebSocket | null = null;
   private intervalId: NodeJS.Timeout | null = null;
-  private isRunning = false;
+  private _isRunning = false;
   private lastPingTime: Date | null = null;
   private config: {
     url: string;
@@ -183,7 +182,6 @@ export class WebSocketKeepalive extends KeepaliveSvc {
     onFailure?: (error: Error) => void;
     onSuccess?: () => void;
   }) {
-    super();
     this.config = {
       url: config.url,
       interval: config.interval || 5 * 60 * 1000,
@@ -195,20 +193,20 @@ export class WebSocketKeepalive extends KeepaliveSvc {
   }
   
   start(): void {
-    if (this.isRunning) {
+    if (this._isRunning) {
       return;
     }
     
-    this.isRunning = true;
+    this._isRunning = true;
     this.connect();
   }
   
   stop(): void {
-    if (!this.isRunning) {
+    if (!this._isRunning) {
       return;
     }
     
-    this.isRunning = false;
+    this._isRunning = false;
     if (this.intervalId) {
       clearInterval(this.intervalId);
       this.intervalId = null;
@@ -221,7 +219,7 @@ export class WebSocketKeepalive extends KeepaliveSvc {
   }
   
   ping(): void {
-    if (!this.isRunning || !this.websocket || this.websocket.readyState !== WebSocket.OPEN) {
+    if (!this._isRunning || !this.websocket || this.websocket.readyState !== WebSocket.OPEN) {
       return;
     }
     
@@ -237,7 +235,7 @@ export class WebSocketKeepalive extends KeepaliveSvc {
   }
   
   isRunning(): boolean {
-    return this.isRunning;
+    return this._isRunning;
   }
   
   private connect(): void {
@@ -254,7 +252,7 @@ export class WebSocketKeepalive extends KeepaliveSvc {
       };
       
       this.websocket.onclose = () => {
-        if (this.isRunning) {
+        if (this._isRunning) {
           setTimeout(() => this.connect(), 5000); // Reconnect after 5 seconds
         }
       };
@@ -278,34 +276,32 @@ export class WebSocketKeepalive extends KeepaliveSvc {
   }
 }
 
-export class CustomKeepalive extends KeepaliveSvc {
+export class CustomKeepalive implements KeepaliveSvc {
   private intervalId: NodeJS.Timeout | null = null;
-  private isRunning = false;
+  private _isRunning = false;
   
   constructor(
     private pingFn: () => void | Promise<void>,
     private interval: number = 5 * 60 * 1000
-  ) {
-    super();
-  }
+  ) {}
   
   start(): void {
-    if (this.isRunning) {
+    if (this._isRunning) {
       return;
     }
     
-    this.isRunning = true;
+    this._isRunning = true;
     this.intervalId = setInterval(() => {
       this.ping();
     }, this.interval);
   }
   
   stop(): void {
-    if (!this.isRunning) {
+    if (!this._isRunning) {
       return;
     }
     
-    this.isRunning = false;
+    this._isRunning = false;
     if (this.intervalId) {
       clearInterval(this.intervalId);
       this.intervalId = null;
@@ -313,7 +309,7 @@ export class CustomKeepalive extends KeepaliveSvc {
   }
   
   ping(): void {
-    if (!this.isRunning) {
+    if (!this._isRunning) {
       return;
     }
     
@@ -330,12 +326,12 @@ export class CustomKeepalive extends KeepaliveSvc {
   }
   
   isRunning(): boolean {
-    return this.isRunning;
+    return this._isRunning;
   }
   
   setInterval(interval: number): void {
     this.interval = interval;
-    if (this.isRunning) {
+    if (this._isRunning) {
       this.stop();
       this.start();
     }
