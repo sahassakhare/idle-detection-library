@@ -3,7 +3,6 @@ import { Actions, createEffect, ofType } from '@ngrx/effects';
 import { Store } from '@ngrx/store';
 import { OidcSecurityService } from 'angular-auth-oidc-client';
 import { 
-  timer, 
   merge, 
   fromEvent, 
   EMPTY, 
@@ -26,9 +25,7 @@ import {
   selectConfig, 
   selectIsWarning, 
   selectMultiTabCoordination,
-  selectLastActivity,
-  selectIdleTimeout,
-  selectWarningTimeout
+  selectLastActivity
 } from './idle.selectors';
 import { TabCoordinationMessage } from '../types';
 
@@ -71,8 +68,7 @@ export class IdleEffects {
   startIdleDetection$ = createEffect(() =>
     this.actions$.pipe(
       ofType(IdleActions.startIdleDetection),
-      withLatestFrom(this.store.select(selectConfig)),
-      switchMap(([, config]) => {
+      switchMap(() => {
         // Check if we're in a browser environment
         if (typeof document === 'undefined' || typeof window === 'undefined') {
           console.warn('Idle detection not available in server-side rendering');
@@ -141,44 +137,9 @@ export class IdleEffects {
     )
   );
 
-  startWarningTimer$ = createEffect(() =>
-    this.actions$.pipe(
-      ofType(IdleActions.userActivity, IdleActions.resetIdle, IdleActions.extendSession),
-      withLatestFrom(
-        this.store.select(selectIdleTimeout),
-        this.store.select(selectWarningTimeout)
-      ),
-      switchMap(([, idleTimeout, warningTimeout]) => {
-        const warningStartTime = idleTimeout - warningTimeout;
-        
-        return timer(warningStartTime).pipe(
-          map(() => IdleActions.startWarning({ timeRemaining: warningTimeout })),
-          takeUntil(this.actions$.pipe(
-            ofType(IdleActions.userActivity, IdleActions.stopIdleDetection)
-          ))
-        );
-      })
-    )
-  );
-
-  warningCountdown$ = createEffect(() =>
-    this.actions$.pipe(
-      ofType(IdleActions.startWarning),
-      switchMap(({ timeRemaining }) => {
-        return timer(0, 1000).pipe(
-          map(tick => {
-            const remaining = Math.max(0, timeRemaining - (tick * 1000));
-            return remaining > 0 
-              ? IdleActions.updateWarningTime({ timeRemaining: remaining })
-              : IdleActions.startIdle();
-          }),
-          takeUntil(this.actions$.pipe(
-            ofType(IdleActions.userActivity, IdleActions.extendSession, IdleActions.stopIdleDetection)
-          ))
-        );
-      })
-    )
-  );
+  // Removed startWarningTimer$ and warningCountdown$ effects
+  // These were conflicting with the core Idle class timers
+  // All timing is now handled by the idleManager in the service
 
   autoRefreshToken$ = createEffect(() =>
     this.actions$.pipe(
