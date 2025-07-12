@@ -1,7 +1,7 @@
 import { Injectable, inject, OnDestroy, Inject, Optional } from '@angular/core';
 import { Store } from '@ngrx/store';
 import { OidcSecurityService } from 'angular-auth-oidc-client';
-import { Observable, Subject, combineLatest, timer, EMPTY } from 'rxjs';
+import { Observable, Subject, combineLatest, timer, EMPTY, of } from 'rxjs';
 import { takeUntil, map, filter, distinctUntilChanged, take, switchMap, tap } from 'rxjs/operators';
 import { Idle, IdleEvent, DEFAULT_INTERRUPTSOURCES } from '@idle-detection/core';
 import { IdleOAuthConfig, IdleState, IdleStatus, IdleWarningData } from './types';
@@ -26,12 +26,18 @@ export class IdleOAuthService implements OnDestroy {
   private idleManager: Idle;
   private countdownTimer$ = new Subject<void>();
   private extendSessionCount = 0; // Track extend session attempts for debugging
+  private isExtendingSession = false; // CRITICAL: Flag to prevent logout during extend
 
   public readonly idleState$ = this.store.select(selectIdleState);
   public readonly isIdle$ = this.store.select(selectIsIdle);
   public readonly isWarning$ = this.store.select(selectIsWarning);
   public readonly timeRemaining$ = this.store.select(selectTimeRemaining);
   public readonly config$ = this.store.select(selectConfig);
+  
+  // CRITICAL: Expose extend session flag for NgRx effects
+  public get isExtendingSession$() {
+    return of(this.isExtendingSession);
+  }
   public readonly idleStatus$ = this.store.select(selectIdleStatus);
 
   constructor(
@@ -78,30 +84,44 @@ export class IdleOAuthService implements OnDestroy {
   }
 
   extendSession(): void {
+    // CRITICAL: Set flag to prevent any logout during extend session
+    this.isExtendingSession = true;
+    
     this.extendSessionCount++;
     const timestamp = new Date().toISOString();
-    console.log(`🔄 [${timestamp}] Extending session (Attempt #${this.extendSessionCount})...`);
+    console.log(`🔄 [${timestamp}] BULLETPROOF EXTEND SESSION (Attempt #${this.extendSessionCount})...`);
     
-    // 1. Stop all active timers and processes completely
-    console.log('   1. Stopping countdown timers...');
-    this.countdownTimer$.next(); // Stop countdown timer
-    
-    console.log('   2. Stopping idle manager completely...');
-    this.idleManager.stop(); // Complete stop - clears all timers and interrupts
-    
-    // 3. Update NgRx state
-    console.log('   3. Updating NgRx state...');
-    this.store.dispatch(IdleActions.extendSession());
-    
-    // 4. Reconfigure idle manager with fresh settings (SYNCHRONOUSLY)
-    console.log('   4. Reconfiguring idle manager...');
-    this.reconfigureIdleManagerSync();
-    
-    // 5. Start fresh idle detection cycle
-    console.log('   5. Starting fresh idle detection...');
-    this.idleManager.watch();
-    
-    console.log(`✅ [${timestamp}] Session extended successfully (Attempt #${this.extendSessionCount})`);
+    try {
+      // 1. Stop all active timers and processes completely
+      console.log('   1. Stopping countdown timers...');
+      this.countdownTimer$.next(); // Stop countdown timer
+      
+      console.log('   2. Stopping idle manager completely...');
+      this.idleManager.stop(); // Complete stop - clears all timers and interrupts
+      
+      // 3. Update NgRx state
+      console.log('   3. Updating NgRx state...');
+      this.store.dispatch(IdleActions.extendSession());
+      
+      // 4. Reconfigure idle manager with fresh settings (SYNCHRONOUSLY)
+      console.log('   4. Reconfiguring idle manager...');
+      this.reconfigureIdleManagerSync();
+      
+      // 5. Start fresh idle detection cycle
+      console.log('   5. Starting fresh idle detection...');
+      this.idleManager.watch();
+      
+      console.log(`✅ [${timestamp}] BULLETPROOF EXTEND SESSION completed (Attempt #${this.extendSessionCount})`);
+      
+    } catch (error) {
+      console.error('❌ Error during extend session:', error);
+    } finally {
+      // CRITICAL: Always clear the flag after extend session completes
+      setTimeout(() => {
+        this.isExtendingSession = false;
+        console.log('🔓 Extend session flag cleared - normal operations resumed');
+      }, 500); // Small delay to ensure all operations complete
+    }
   }
 
   private reconfigureIdleManager(): void {
@@ -228,6 +248,12 @@ export class IdleOAuthService implements OnDestroy {
     });
 
     this.idleManager.on(IdleEvent.TIMEOUT, () => {
+      // CRITICAL: Don't trigger logout if we're in the middle of extending session
+      if (this.isExtendingSession) {
+        console.log('🛡️ TIMEOUT blocked - extend session in progress');
+        return;
+      }
+      console.log('🚨 TIMEOUT - dispatching startIdle action');
       this.store.dispatch(IdleActions.startIdle());
     });
 
