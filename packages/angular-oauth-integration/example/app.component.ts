@@ -125,8 +125,10 @@ export class AppComponent implements OnInit, OnDestroy {
   }
 
   onExtendSession(): void {
-    this.showWarning = false;
+    console.log('📱 APP COMPONENT: onExtendSession() called');
+    // Call service first, then hide dialog
     this.extendSession();
+    this.showWarning = false;
   }
 
   onLogout(): void {

@@ -444,6 +444,8 @@ export class IdleWarningDialogComponent implements OnInit, OnDestroy {
 
   onExtendSession(): void {
     console.log('🎯 Extend session clicked');
+    console.log('🔍 DEBUG: warningData =', this.warningData);
+    console.log('🔍 DEBUG: onExtendSession exists =', !!this.warningData?.onExtendSession);
     
     // Call service method first (most important)
     if (this.warningData?.onExtendSession) {
@@ -451,6 +453,7 @@ export class IdleWarningDialogComponent implements OnInit, OnDestroy {
       this.warningData.onExtendSession();
     } else {
       console.log('⚠️ WARNING: warningData.onExtendSession is not available');
+      console.log('⚠️ WARNING: warningData =', this.warningData);
     }
     
     // Then emit to parent component
