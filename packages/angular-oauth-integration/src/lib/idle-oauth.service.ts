@@ -93,26 +93,33 @@ export class IdleOAuthService implements OnDestroy {
     console.log(`🔄 [${timestamp}] EXTEND SESSION (Attempt #${this.extendSessionCount})...`);
     
     try {
-      // 1. Stop all active timers and processes completely
-      console.log('   1. Stopping countdown timers...');
+      // 1. IMMEDIATE: Stop countdown and reset warning state  
+      console.log('   1. EMERGENCY STOP: All timers and warning state...');
       this.countdownTimer$.next(); // Stop countdown timer
+      this.store.dispatch(IdleActions.resetIdle()); // Reset state FIRST
       
-      console.log('   2. Stopping idle manager completely...');
-      this.idleManager.stop(); // Complete stop - clears all timers and interrupts
+      // 2. AGGRESSIVE: Multiple stop calls to ensure IdleManager is truly stopped
+      console.log('   2. AGGRESSIVE STOP: IdleManager...');
+      this.idleManager.stop(); // First stop
+      this.idleManager.stop(); // Second stop for safety
       
-      // 3. Reset idle state (bypass extendSession action to avoid effects conflict)
-      console.log('   3. Resetting idle state directly...');
-      this.store.dispatch(IdleActions.resetIdle());
+      // 3. FORCE: Clear any existing timeouts/intervals in IdleManager
+      console.log('   3. FORCE CLEAR: All internal timers...');
+      // Force stop by reconfiguring with very long timeouts temporarily
+      this.idleManager.setIdleTimeout(999999999);
+      this.idleManager.setWarningTimeout(999999999);
       
-      // 4. Reconfigure idle manager with fresh settings (SYNCHRONOUSLY)
-      console.log('   4. Reconfiguring idle manager...');
-      this.reconfigureIdleManagerSync();
-      
-      // 5. Start fresh idle detection cycle
-      console.log('   5. Starting fresh idle detection...');
-      this.idleManager.watch();
-      
-      console.log(`✅ [${timestamp}] EXTEND SESSION completed (Attempt #${this.extendSessionCount})`);
+      // 4. Wait for everything to clear, then reconfigure properly
+      console.log('   4. DELAY: Ensuring clean state...');
+      setTimeout(() => {
+        console.log('   5. RECONFIGURE: Fresh idle manager settings...');
+        this.reconfigureIdleManagerSync();
+        
+        console.log('   6. RESTART: Fresh idle detection cycle...');
+        this.idleManager.watch();
+        
+        console.log(`✅ [${timestamp}] EXTEND SESSION completed (Attempt #${this.extendSessionCount})`);
+      }, 100); // Small delay to ensure cleanup
       
     } catch (error) {
       console.error('❌ Error during extend session:', error);
@@ -121,7 +128,7 @@ export class IdleOAuthService implements OnDestroy {
       setTimeout(() => {
         this.isExtendingSession = false;
         console.log('🔓 Extend session flag cleared - normal operations resumed');
-      }, 2000); // Longer delay to ensure all operations complete and any queued events are handled
+      }, 3000); // Even longer delay to ensure everything is stable
     }
   }
 
