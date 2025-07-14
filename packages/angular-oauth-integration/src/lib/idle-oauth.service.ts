@@ -93,33 +93,19 @@ export class IdleOAuthService implements OnDestroy {
     console.log(`🔄 [${timestamp}] EXTEND SESSION (Attempt #${this.extendSessionCount})...`);
     
     try {
-      // 1. IMMEDIATE: Stop countdown and reset warning state  
-      console.log('   1. EMERGENCY STOP: All timers and warning state...');
-      this.countdownTimer$.next(); // Stop countdown timer
-      this.store.dispatch(IdleActions.resetIdle()); // Reset state FIRST
+      // 1. IMMEDIATE: Stop countdown timer
+      console.log('   1. STOP: Warning countdown timer...');
+      this.countdownTimer$.next(); // Stop countdown timer immediately
       
-      // 2. AGGRESSIVE: Multiple stop calls to ensure IdleManager is truly stopped
-      console.log('   2. AGGRESSIVE STOP: IdleManager...');
-      this.idleManager.stop(); // First stop
-      this.idleManager.stop(); // Second stop for safety
+      // 2. RESET: Use IdleManager reset to trigger IDLE_END event
+      console.log('   2. RESET: IdleManager to trigger IDLE_END...');
+      this.idleManager.reset(); // This should trigger IDLE_END event
       
-      // 3. FORCE: Clear any existing timeouts/intervals in IdleManager
-      console.log('   3. FORCE CLEAR: All internal timers...');
-      // Force stop by reconfiguring with very long timeouts temporarily
-      this.idleManager.setIdleTimeout(999999999);
-      this.idleManager.setWarningTimeout(999999999);
+      // 3. DISPATCH: Reset state in store
+      console.log('   3. DISPATCH: Reset idle state...');
+      this.store.dispatch(IdleActions.resetIdle());
       
-      // 4. Wait for everything to clear, then reconfigure properly
-      console.log('   4. DELAY: Ensuring clean state...');
-      setTimeout(() => {
-        console.log('   5. RECONFIGURE: Fresh idle manager settings...');
-        this.reconfigureIdleManagerSync();
-        
-        console.log('   6. RESTART: Fresh idle detection cycle...');
-        this.idleManager.watch();
-        
-        console.log(`✅ [${timestamp}] EXTEND SESSION completed (Attempt #${this.extendSessionCount})`);
-      }, 100); // Small delay to ensure cleanup
+      console.log(`✅ [${timestamp}] EXTEND SESSION completed (Attempt #${this.extendSessionCount})`);
       
     } catch (error) {
       console.error('❌ Error during extend session:', error);
@@ -130,47 +116,6 @@ export class IdleOAuthService implements OnDestroy {
     }
   }
 
-  private reconfigureIdleManager(): void {
-    // Get current configuration and ensure it's applied
-    this.config$.pipe(take(1)).subscribe(config => {
-      console.log('🔧 Reconfiguring idle manager with timeouts:', {
-        idle: config.idleTimeout,
-        warning: config.warningTimeout
-      });
-      
-      // Ensure timeouts are properly set
-      this.idleManager.setIdleTimeout(config.idleTimeout);
-      this.idleManager.setWarningTimeout(config.warningTimeout);
-      
-      // Reconfigure interrupt sources to ensure clean setup
-      this.idleManager.setInterrupts(DEFAULT_INTERRUPTSOURCES);
-    });
-  }
-
-  private reconfigureIdleManagerSync(): void {
-    // CRITICAL FIX: Synchronous reconfiguration for extend session
-    // Get current config synchronously from the store
-    let currentConfig: any = null;
-    this.config$.pipe(take(1)).subscribe(config => {
-      currentConfig = config;
-    });
-
-    if (currentConfig) {
-      console.log('🔧 Reconfiguring idle manager SYNCHRONOUSLY with timeouts:', {
-        idle: currentConfig.idleTimeout,
-        warning: currentConfig.warningTimeout
-      });
-      
-      // Ensure timeouts are properly set
-      this.idleManager.setIdleTimeout(currentConfig.idleTimeout);
-      this.idleManager.setWarningTimeout(currentConfig.warningTimeout);
-      
-      // Reconfigure interrupt sources to ensure clean setup
-      this.idleManager.setInterrupts(DEFAULT_INTERRUPTSOURCES);
-    } else {
-      console.error('❌ Could not get current config for synchronous reconfiguration');
-    }
-  }
 
   logout(): void {
     this.store.dispatch(IdleActions.logout());
