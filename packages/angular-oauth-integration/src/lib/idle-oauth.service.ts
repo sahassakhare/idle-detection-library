@@ -124,11 +124,9 @@ export class IdleOAuthService implements OnDestroy {
     } catch (error) {
       console.error('❌ Error during extend session:', error);
     } finally {
-      // CRITICAL: Always clear the flag after extend session completes
-      setTimeout(() => {
-        this.isExtendingSession = false;
-        console.log('🔓 Extend session flag cleared - normal operations resumed');
-      }, 3000); // Even longer delay to ensure everything is stable
+      // CRITICAL: Don't clear flag on timer - only clear when warning actually stops
+      // The flag will be cleared when IDLE_END event fires or user activity detected
+      console.log('⏳ Protection flag will remain active until warning period ends');
     }
   }
 
@@ -269,11 +267,21 @@ export class IdleOAuthService implements OnDestroy {
     this.idleManager.on(IdleEvent.IDLE_END, () => {
       this.countdownTimer$.next(); // Stop countdown
       this.store.dispatch(IdleActions.resetIdle());
+      // Clear extend session protection when idle period ends
+      if (this.isExtendingSession) {
+        this.isExtendingSession = false;
+        console.log('🔓 Extend session protection cleared - idle period ended');
+      }
     });
 
     this.idleManager.on(IdleEvent.INTERRUPT, () => {
       this.countdownTimer$.next(); // Stop countdown
       this.store.dispatch(IdleActions.userActivity({ timestamp: Date.now() }));
+      // Clear extend session protection on user activity
+      if (this.isExtendingSession) {
+        this.isExtendingSession = false;
+        console.log('🔓 Extend session protection cleared - user activity detected');
+      }
     });
   }
   
