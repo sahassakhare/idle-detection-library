@@ -25,6 +25,7 @@ export class IdleOAuthService implements OnDestroy {
   private destroy$ = new Subject<void>();
   private idleManager: Idle;
   private countdownTimer$ = new Subject<void>();
+  private countdownSubscription: any = null; // Store countdown subscription for direct control
   private extendSessionCount = 0; // Track extend session attempts for debugging
   private isExtendingSession = false; // CRITICAL: Flag to prevent logout during extend
 
@@ -93,9 +94,14 @@ export class IdleOAuthService implements OnDestroy {
     console.log(`🔄 [${timestamp}] EXTEND SESSION (Attempt #${this.extendSessionCount})...`);
     
     try {
-      // 1. IMMEDIATE: Stop countdown timer
+      // 1. IMMEDIATE: Stop countdown timer directly
       console.log('   1. STOP: Warning countdown timer...');
-      this.countdownTimer$.next(); // Stop countdown timer immediately
+      if (this.countdownSubscription) {
+        console.log('   1a. Unsubscribing countdown subscription...');
+        this.countdownSubscription.unsubscribe();
+        this.countdownSubscription = null;
+      }
+      this.countdownTimer$.next(); // Also trigger Subject for any other listeners
       
       // 2. RESET: Use IdleManager reset to trigger IDLE_END event
       console.log('   2. RESET: IdleManager to trigger IDLE_END...');
@@ -210,6 +216,12 @@ export class IdleOAuthService implements OnDestroy {
     });
 
     this.idleManager.on(IdleEvent.IDLE_END, () => {
+      // Stop countdown subscription directly
+      if (this.countdownSubscription) {
+        console.log('🛑 IDLE_END: Stopping countdown subscription...');
+        this.countdownSubscription.unsubscribe();
+        this.countdownSubscription = null;
+      }
       this.countdownTimer$.next(); // Stop countdown
       this.store.dispatch(IdleActions.resetIdle());
       // Clear extend session protection when idle period ends
@@ -220,6 +232,12 @@ export class IdleOAuthService implements OnDestroy {
     });
 
     this.idleManager.on(IdleEvent.INTERRUPT, () => {
+      // Stop countdown subscription directly
+      if (this.countdownSubscription) {
+        console.log('🛑 INTERRUPT: Stopping countdown subscription...');
+        this.countdownSubscription.unsubscribe();
+        this.countdownSubscription = null;
+      }
       this.countdownTimer$.next(); // Stop countdown
       this.store.dispatch(IdleActions.userActivity({ timestamp: Date.now() }));
       // Clear extend session protection on user activity
@@ -233,11 +251,16 @@ export class IdleOAuthService implements OnDestroy {
   private startWarningCountdown(warningTimeout: number): void {
     console.log(`🔔 Starting warning countdown: ${warningTimeout}ms (${Math.floor(warningTimeout / 1000)}s)`);
     
-    // CRITICAL FIX: Ensure any existing countdown is stopped first
+    // CRITICAL FIX: Stop any existing countdown first
+    if (this.countdownSubscription) {
+      console.log('🛑 Stopping existing countdown subscription...');
+      this.countdownSubscription.unsubscribe();
+      this.countdownSubscription = null;
+    }
     this.countdownTimer$.next();
     
-    // FIXED: Remove setTimeout wrapper to allow immediate timer stopping
-    timer(0, 1000).pipe(
+    // Store subscription for direct control
+    this.countdownSubscription = timer(0, 1000).pipe(
       map(tick => Math.max(0, warningTimeout - (tick * 1000))),
       tap(remaining => {
         console.log(`⏱️ Warning countdown: ${Math.floor(remaining / 1000)}s remaining`);
@@ -253,8 +276,14 @@ export class IdleOAuthService implements OnDestroy {
       takeUntil(this.destroy$)
     ).subscribe({
       next: () => {}, // Timer tick
-      complete: () => console.log('🔕 Warning countdown stopped'),
-      error: (err) => console.error('❌ Warning countdown error:', err)
+      complete: () => {
+        console.log('🔕 Warning countdown stopped');
+        this.countdownSubscription = null;
+      },
+      error: (err) => {
+        console.error('❌ Warning countdown error:', err);
+        this.countdownSubscription = null;
+      }
     });
   }
 
