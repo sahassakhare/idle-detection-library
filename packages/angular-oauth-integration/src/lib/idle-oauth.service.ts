@@ -291,28 +291,26 @@ export class IdleOAuthService implements OnDestroy {
     // CRITICAL FIX: Ensure any existing countdown is stopped first
     this.countdownTimer$.next();
     
-    // Add a small delay to ensure the previous timer is fully stopped
-    setTimeout(() => {
-      timer(0, 1000).pipe(
-        map(tick => Math.max(0, warningTimeout - (tick * 1000))),
-        tap(remaining => {
-          console.log(`⏱️ Warning countdown: ${Math.floor(remaining / 1000)}s remaining`);
-          if (remaining > 0) {
-            this.store.dispatch(IdleActions.updateWarningTime({ timeRemaining: remaining }));
-          } else {
-            console.log('⏰ Warning countdown complete - letting core manager handle timeout');
-            // Time's up - let the core idle manager handle the timeout
-            // Don't dispatch startIdle here as it will conflict with the core manager
-          }
-        }),
-        takeUntil(this.countdownTimer$),
-        takeUntil(this.destroy$)
-      ).subscribe({
-        next: () => {}, // Timer tick
-        complete: () => console.log('🔕 Warning countdown stopped'),
-        error: (err) => console.error('❌ Warning countdown error:', err)
-      });
-    }, 10); // Small delay to ensure previous timer cleanup
+    // FIXED: Remove setTimeout wrapper to allow immediate timer stopping
+    timer(0, 1000).pipe(
+      map(tick => Math.max(0, warningTimeout - (tick * 1000))),
+      tap(remaining => {
+        console.log(`⏱️ Warning countdown: ${Math.floor(remaining / 1000)}s remaining`);
+        if (remaining > 0) {
+          this.store.dispatch(IdleActions.updateWarningTime({ timeRemaining: remaining }));
+        } else {
+          console.log('⏰ Warning countdown complete - letting core manager handle timeout');
+          // Time's up - let the core idle manager handle the timeout
+          // Don't dispatch startIdle here as it will conflict with the core manager
+        }
+      }),
+      takeUntil(this.countdownTimer$),
+      takeUntil(this.destroy$)
+    ).subscribe({
+      next: () => {}, // Timer tick
+      complete: () => console.log('🔕 Warning countdown stopped'),
+      error: (err) => console.error('❌ Warning countdown error:', err)
+    });
   }
 
   ngOnDestroy(): void {
