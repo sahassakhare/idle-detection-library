@@ -31,6 +31,7 @@ export class IdleOAuthService implements OnDestroy {
   public readonly isExtendingSession$ = this.isExtendingSessionSubject.asObservable();
   
   private extendSessionTimeout?: number;
+  private lastExtendSessionTime = 0; // Track when extend session was called
 
   public readonly idleState$ = this.store.select(selectIdleState);
   public readonly isIdle$ = this.store.select(selectIsIdle);
@@ -96,8 +97,9 @@ export class IdleOAuthService implements OnDestroy {
     console.log(`🔄 [${timestamp}] EXTEND SESSION (Attempt #${this.extendSessionCount})...`);
     
     try {
-      // Set protection flag
+      // Set protection flag and record timestamp
       this.setExtendingSession(true);
+      this.lastExtendSessionTime = Date.now();
       
       // Reset idle manager to trigger proper state change
       console.log('   1. RESET: IdleManager to trigger IDLE_END...');
@@ -113,14 +115,14 @@ export class IdleOAuthService implements OnDestroy {
       console.error('❌ Error during extend session:', error);
       this.setExtendingSession(false);
     } finally {
-      // Safety timeout to clear extending flag
+      // Safety timeout to clear extending flag - longer duration to handle delayed TIMEOUT events
       this.clearExtendSessionTimeout();
       this.extendSessionTimeout = window.setTimeout(() => {
         if (this.isExtendingSessionSubject.value) {
-          console.log('🔓 Safety timeout: Clearing extend session flag');
+          console.log('🔓 Safety timeout: Clearing extend session flag after successful extend');
           this.setExtendingSession(false);
         }
-      }, 5000);
+      }, 10000); // Increased to 10 seconds to handle delayed events
     }
   }
 
@@ -230,11 +232,12 @@ export class IdleOAuthService implements OnDestroy {
     });
 
     this.idleManager.on(IdleEvent.TIMEOUT, () => {
-      console.log(`🚨 TIMEOUT event - isExtendingSession: ${this.isExtendingSessionSubject.value}`);
+      const timeSinceExtend = Date.now() - this.lastExtendSessionTime;
+      console.log(`🚨 TIMEOUT event - isExtendingSession: ${this.isExtendingSessionSubject.value}, timeSinceExtend: ${timeSinceExtend}ms`);
       
-      // Don't logout if extending session
-      if (this.isExtendingSessionSubject.value) {
-        console.log('🛡️ TIMEOUT blocked - extend session in progress');
+      // Don't logout if extending session OR if timeout occurs within 15 seconds of extend session
+      if (this.isExtendingSessionSubject.value || timeSinceExtend < 15000) {
+        console.log('🛡️ TIMEOUT blocked - extend session in progress or recent extend session');
         return;
       }
       
@@ -245,13 +248,17 @@ export class IdleOAuthService implements OnDestroy {
     this.idleManager.on(IdleEvent.IDLE_END, () => {
       console.log('✅ IDLE_END event');
       this.store.dispatch(IdleActions.resetIdle());
-      this.setExtendingSession(false);
+      // Don't clear extending flag immediately - wait for safety timeout
+      // This prevents TIMEOUT event from firing after IDLE_END during extend session
     });
 
     this.idleManager.on(IdleEvent.INTERRUPT, () => {
       console.log('🔄 INTERRUPT event - user activity detected');
       this.store.dispatch(IdleActions.userActivity({ timestamp: Date.now() }));
-      this.setExtendingSession(false);
+      // Only clear extending flag on genuine user activity, not during extend session
+      if (!this.isExtendingSessionSubject.value) {
+        this.setExtendingSession(false);
+      }
     });
   }
   
