@@ -1,7 +1,7 @@
 import { Injectable, inject, OnDestroy, Inject, Optional } from '@angular/core';
 import { Store } from '@ngrx/store';
 import { OidcSecurityService } from 'angular-auth-oidc-client';
-import { Observable, Subject, combineLatest, timer, EMPTY, of } from 'rxjs';
+import { Observable, Subject, combineLatest, timer, EMPTY, of, Subscription } from 'rxjs';
 import { takeUntil, map, filter, distinctUntilChanged, take, switchMap, tap } from 'rxjs/operators';
 import { Idle, IdleEvent, DEFAULT_INTERRUPTSOURCES } from '@idle-detection/core';
 import { IdleOAuthConfig, IdleState, IdleStatus, IdleWarningData } from './types';
@@ -24,10 +24,9 @@ export class IdleOAuthService implements OnDestroy {
   private oidcSecurityService = inject(OidcSecurityService);
   private destroy$ = new Subject<void>();
   private idleManager: Idle;
-  private countdownTimer$ = new Subject<void>();
-  private countdownSubscription: any = null; // Store countdown subscription for direct control
   private extendSessionCount = 0; // Track extend session attempts for debugging
   private isExtendingSession = false; // CRITICAL: Flag to prevent logout during extend
+  private extendSessionTimeout?: number; // Timeout to clear extending flag as fallback
 
   public readonly idleState$ = this.store.select(selectIdleState);
   public readonly isIdle$ = this.store.select(selectIsIdle);
@@ -85,6 +84,12 @@ export class IdleOAuthService implements OnDestroy {
   }
 
   extendSession(): void {
+    // Clear any existing timeout first
+    if (this.extendSessionTimeout) {
+      clearTimeout(this.extendSessionTimeout);
+      this.extendSessionTimeout = undefined;
+    }
+
     // CRITICAL: Set flag to prevent any logout during extend session
     this.isExtendingSession = true;
     console.log(`🔒 PROTECTION ACTIVATED - isExtendingSession: ${this.isExtendingSession}`);
@@ -94,31 +99,39 @@ export class IdleOAuthService implements OnDestroy {
     console.log(`🔄 [${timestamp}] EXTEND SESSION (Attempt #${this.extendSessionCount})...`);
     
     try {
-      // 1. IMMEDIATE: Stop countdown timer directly
-      console.log('   1. STOP: Warning countdown timer...');
-      if (this.countdownSubscription) {
-        console.log('   1a. Unsubscribing countdown subscription...');
-        this.countdownSubscription.unsubscribe();
-        this.countdownSubscription = null;
-      }
-      this.countdownTimer$.next(); // Also trigger Subject for any other listeners
+      // 1. RESET: Use IdleManager reset to trigger proper state change
+      console.log('   1. RESET: IdleManager to trigger IDLE_END...');
+      this.idleManager.reset(); // This should trigger IDLE_END event which clears the flag
       
-      // 2. RESET: Use IdleManager reset to trigger IDLE_END event
-      console.log('   2. RESET: IdleManager to trigger IDLE_END...');
-      this.idleManager.reset(); // This should trigger IDLE_END event
-      
-      // 3. DISPATCH: Reset state in store
-      console.log('   3. DISPATCH: Reset idle state...');
+      // 2. DISPATCH: Reset state in store
+      console.log('   2. DISPATCH: Reset idle state...');
       this.store.dispatch(IdleActions.resetIdle());
       
       console.log(`✅ [${timestamp}] EXTEND SESSION completed (Attempt #${this.extendSessionCount})`);
       
     } catch (error) {
       console.error('❌ Error during extend session:', error);
+      // Clear flag on error
+      this.clearExtendingFlag();
     } finally {
-      // CRITICAL: Don't clear flag on timer - only clear when warning actually stops
-      // The flag will be cleared when IDLE_END event fires or user activity detected
-      console.log('⏳ Protection flag will remain active until warning period ends');
+      // Fallback: Clear flag after 5 seconds if events don't fire
+      this.extendSessionTimeout = window.setTimeout(() => {
+        if (this.isExtendingSession) {
+          console.log('⚠️ FALLBACK: Clearing extend session flag after timeout');
+          this.clearExtendingFlag();
+        }
+      }, 5000);
+    }
+  }
+
+  private clearExtendingFlag(): void {
+    if (this.isExtendingSession) {
+      this.isExtendingSession = false;
+      console.log('🔓 Extend session protection cleared');
+    }
+    if (this.extendSessionTimeout) {
+      clearTimeout(this.extendSessionTimeout);
+      this.extendSessionTimeout = undefined;
     }
   }
 
@@ -150,20 +163,20 @@ export class IdleOAuthService implements OnDestroy {
     );
   }
 
-  getCurrentWarningData(): IdleWarningData | null {
-    let currentTimeRemaining = 0;
-    let currentConfig: any = null;
-    
-    this.timeRemaining$.pipe(take(1)).subscribe(time => currentTimeRemaining = time);
-    this.config$.pipe(take(1)).subscribe(config => currentConfig = config);
-    
-    return {
-      timeRemaining: currentTimeRemaining,
-      timeRemaining$: this.timeRemaining$,
-      onExtendSession: () => this.extendSession(),
-      onLogout: () => this.logout(),
-      cssClasses: currentConfig?.customCssClasses
-    };
+  getCurrentWarningData(): Observable<IdleWarningData> {
+    return combineLatest([
+      this.timeRemaining$,
+      this.config$
+    ]).pipe(
+      map(([timeRemaining, config]) => ({
+        timeRemaining,
+        timeRemaining$: this.timeRemaining$,
+        onExtendSession: () => this.extendSession(),
+        onLogout: () => this.logout(),
+        cssClasses: config?.customCssClasses
+      })),
+      take(1)
+    );
   }
 
   private setupAuthenticationWatcher(): void {
@@ -197,10 +210,9 @@ export class IdleOAuthService implements OnDestroy {
 
   private setupIdleDetection(): void {
     this.idleManager.on(IdleEvent.IDLE_START, () => {
-      // Start warning with proper countdown
+      // Just dispatch warning state - let the IdleManager handle timing
       this.config$.pipe(take(1)).subscribe(config => {
         this.store.dispatch(IdleActions.startWarning({ timeRemaining: config.warningTimeout }));
-        this.startWarningCountdown(config.warningTimeout);
       });
     });
 
@@ -216,78 +228,26 @@ export class IdleOAuthService implements OnDestroy {
     });
 
     this.idleManager.on(IdleEvent.IDLE_END, () => {
-      // Stop countdown subscription directly
-      if (this.countdownSubscription) {
-        console.log('🛑 IDLE_END: Stopping countdown subscription...');
-        this.countdownSubscription.unsubscribe();
-        this.countdownSubscription = null;
-      }
-      this.countdownTimer$.next(); // Stop countdown
       this.store.dispatch(IdleActions.resetIdle());
       // Clear extend session protection when idle period ends
-      if (this.isExtendingSession) {
-        this.isExtendingSession = false;
-        console.log('🔓 Extend session protection cleared - idle period ended');
-      }
+      this.clearExtendingFlag();
     });
 
     this.idleManager.on(IdleEvent.INTERRUPT, () => {
-      // Stop countdown subscription directly
-      if (this.countdownSubscription) {
-        console.log('🛑 INTERRUPT: Stopping countdown subscription...');
-        this.countdownSubscription.unsubscribe();
-        this.countdownSubscription = null;
-      }
-      this.countdownTimer$.next(); // Stop countdown
       this.store.dispatch(IdleActions.userActivity({ timestamp: Date.now() }));
       // Clear extend session protection on user activity
-      if (this.isExtendingSession) {
-        this.isExtendingSession = false;
-        console.log('🔓 Extend session protection cleared - user activity detected');
-      }
+      this.clearExtendingFlag();
     });
   }
   
-  private startWarningCountdown(warningTimeout: number): void {
-    console.log(`🔔 Starting warning countdown: ${warningTimeout}ms (${Math.floor(warningTimeout / 1000)}s)`);
-    
-    // CRITICAL FIX: Stop any existing countdown first
-    if (this.countdownSubscription) {
-      console.log('🛑 Stopping existing countdown subscription...');
-      this.countdownSubscription.unsubscribe();
-      this.countdownSubscription = null;
-    }
-    this.countdownTimer$.next();
-    
-    // Store subscription for direct control
-    this.countdownSubscription = timer(0, 1000).pipe(
-      map(tick => Math.max(0, warningTimeout - (tick * 1000))),
-      tap(remaining => {
-        console.log(`⏱️ Warning countdown: ${Math.floor(remaining / 1000)}s remaining`);
-        if (remaining > 0) {
-          this.store.dispatch(IdleActions.updateWarningTime({ timeRemaining: remaining }));
-        } else {
-          console.log('⏰ Warning countdown complete - letting core manager handle timeout');
-          // Time's up - let the core idle manager handle the timeout
-          // Don't dispatch startIdle here as it will conflict with the core manager
-        }
-      }),
-      takeUntil(this.countdownTimer$),
-      takeUntil(this.destroy$)
-    ).subscribe({
-      next: () => {}, // Timer tick
-      complete: () => {
-        console.log('🔕 Warning countdown stopped');
-        this.countdownSubscription = null;
-      },
-      error: (err) => {
-        console.error('❌ Warning countdown error:', err);
-        this.countdownSubscription = null;
-      }
-    });
-  }
 
   ngOnDestroy(): void {
+    // Clear any pending timeout
+    if (this.extendSessionTimeout) {
+      clearTimeout(this.extendSessionTimeout);
+      this.extendSessionTimeout = undefined;
+    }
+    
     this.destroy$.next();
     this.destroy$.complete();
     this.idleManager.stop();
