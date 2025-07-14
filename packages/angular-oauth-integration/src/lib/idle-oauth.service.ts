@@ -1,10 +1,10 @@
 import { Injectable, inject, OnDestroy, Inject, Optional } from '@angular/core';
 import { Store } from '@ngrx/store';
 import { OidcSecurityService } from 'angular-auth-oidc-client';
-import { Observable, Subject, combineLatest, BehaviorSubject, Subscription } from 'rxjs';
+import { Observable, Subject, combineLatest, BehaviorSubject } from 'rxjs';
 import { takeUntil, map, filter, distinctUntilChanged, take } from 'rxjs/operators';
 import { Idle, IdleEvent, DEFAULT_INTERRUPTSOURCES } from '@idle-detection/core';
-import { IdleOAuthConfig, IdleState, IdleStatus, IdleWarningData } from './types';
+import { IdleOAuthConfig, IdleWarningData } from './types';
 import { IDLE_OAUTH_CONFIG } from './providers';
 import * as IdleActions from './store/idle.actions';
 import { 
@@ -78,7 +78,7 @@ export class IdleOAuthService implements OnDestroy {
 
   stop(): void {
     console.log('🛑 Stopping idle detection...');
-    this.countdownTimer$.next(); // Stop any active countdown
+    this.cleanup();
     this.store.dispatch(IdleActions.stopIdleDetection());
     this.idleManager.stop();
   }
