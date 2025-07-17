@@ -62,20 +62,20 @@ export class IdleOAuthService implements OnDestroy {
   }
 
   start(): void {
-    console.log('🚀 Starting idle detection...');
+    console.log('Starting idle detection...');
     this.store.dispatch(IdleActions.startIdleDetection());
     this.idleManager.watch();
   }
 
   stop(): void {
-    console.log('🛑 Stopping idle detection...');
+    console.log('Stopping idle detection...');
     this.store.dispatch(IdleActions.stopIdleDetection());
     this.idleManager.stop();
   }
 
   extendSession(): void {
     const now = Date.now();
-    console.log(`🔄 [${new Date().toISOString()}] EXTEND SESSION - blocking logout for 30 seconds`);
+    console.log(`[${new Date().toISOString()}] EXTEND SESSION - blocking logout for 30 seconds`);
     
     // Block logout for 30 seconds from now
     this.blockLogoutUntil = now + 30000;
@@ -86,18 +86,18 @@ export class IdleOAuthService implements OnDestroy {
     // Update store
     this.store.dispatch(IdleActions.resetIdle());
     
-    console.log(`✅ Session extended - logout blocked until ${new Date(this.blockLogoutUntil).toISOString()}`);
+    console.log(`Session extended - logout blocked until ${new Date(this.blockLogoutUntil).toISOString()}`);
   }
 
   logout(): void {
     const now = Date.now();
     
     if (now < this.blockLogoutUntil) {
-      console.log(`🛡️ Logout blocked - ${Math.ceil((this.blockLogoutUntil - now) / 1000)}s remaining`);
+      console.log(`Logout blocked - ${Math.ceil((this.blockLogoutUntil - now) / 1000)}s remaining`);
       return;
     }
     
-    console.log('🚪 Performing logout...');
+    console.log('Performing logout...');
     this.store.dispatch(IdleActions.logout());
   }
 
@@ -157,7 +157,7 @@ export class IdleOAuthService implements OnDestroy {
   private setupIdleDetection(): void {
     // IDLE_START - show warning dialog
     this.idleManager.on(IdleEvent.IDLE_START, () => {
-      console.log('⚠️ IDLE_START - showing warning');
+      console.log('IDLE_START - showing warning');
       this.config$.pipe(take(1)).subscribe(config => {
         this.store.dispatch(IdleActions.startWarning({ timeRemaining: config.warningTimeout }));
       });
@@ -165,25 +165,25 @@ export class IdleOAuthService implements OnDestroy {
 
     // TIMEOUT - try to logout (will be blocked if extend session was recent)
     this.idleManager.on(IdleEvent.TIMEOUT, () => {
-      console.log('🚨 TIMEOUT - attempting logout');
+      console.log('TIMEOUT - attempting logout');
       this.logout(); // This method now handles the blocking logic
     });
 
     // IDLE_END - reset state
     this.idleManager.on(IdleEvent.IDLE_END, () => {
-      console.log('✅ IDLE_END - resetting state');
+      console.log('IDLE_END - resetting state');
       this.store.dispatch(IdleActions.resetIdle());
     });
 
     // INTERRUPT - user activity
     this.idleManager.on(IdleEvent.INTERRUPT, () => {
-      console.log('🔄 INTERRUPT - user activity');
+      console.log('INTERRUPT - user activity');
       this.store.dispatch(IdleActions.userActivity({ timestamp: Date.now() }));
     });
   }
 
   ngOnDestroy(): void {
-    console.log('🧹 Destroying IdleOAuthService...');
+    console.log('Destroying IdleOAuthService...');
     this.destroy$.next();
     this.destroy$.complete();
     this.idleManager.stop();

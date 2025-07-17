@@ -373,7 +373,7 @@ export class AppComponent {
       [warningData]="warningData"
       theme="dark"
       size="large"
-      titleText="🔒 Security Alert"
+      titleText="Security Alert"
       messageText="Your session will expire in {{timeRemaining}} seconds for security."
       extendText="Continue Session"
       logoutText="Secure Logout"

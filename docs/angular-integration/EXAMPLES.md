@@ -352,7 +352,7 @@ import { AuditService } from './services/audit.service';
         [warningData]="warningData"
         theme="dark"
         size="large"
-        titleText="🔒 Security Notice"
+        titleText="Security Notice"
         messageText="Your session will expire due to inactivity for security compliance."
         extendText="Continue Working"
         logoutText="Secure Logout"
@@ -369,7 +369,7 @@ import { AuditService } from './services/audit.service';
       <!-- Idle overlay for security -->
       <div *ngIf="isIdle$ | async" class="security-overlay">
         <div class="security-message">
-          <div class="security-icon">🔒</div>
+          <div class="security-icon">Security</div>
           <h2>Session Secured</h2>
           <p>Your session has been secured due to inactivity.</p>
           <p>Please authenticate again to continue.</p>
@@ -860,21 +860,21 @@ interface ExtendOption {
             class="btn btn-primary"
             [disabled]="!canExtend"
             (click)="onExtendSession()">
-            <span class="btn-icon">🔄</span>
+            <span class="btn-icon">Refresh</span>
             {{ extendButtonText }}
           </button>
           
           <button 
             class="btn btn-secondary"
             (click)="onSaveAndLogout()">
-            <span class="btn-icon">💾</span>
+            <span class="btn-icon">Save</span>
             Save & Logout
           </button>
           
           <button 
             class="btn btn-danger"
             (click)="onLogout()">
-            <span class="btn-icon">🚪</span>
+            <span class="btn-icon">Exit</span>
             Logout Now
           </button>
         </div>
@@ -882,7 +882,7 @@ interface ExtendOption {
         <!-- Footer -->
         <div class="dialog-footer">
           <div class="security-notice">
-            <small>🔒 This session timeout is for your security</small>
+            <small>This session timeout is for your security</small>
           </div>
         </div>
       </div>
@@ -1174,7 +1174,7 @@ interface ExtendOption {
 })
 export class AdvancedWarningDialogComponent implements OnInit, OnDestroy {
   @Input() warningData!: IdleWarningData;
-  @Input() title = '⚠️ Session Expiring';
+  @Input() title = 'Session Expiring';
   @Input() message = 'Your session will expire soon due to inactivity.';
   @Input() showExtendOptions = true;
   @Input() allowCustomTime = true;
@@ -1191,10 +1191,10 @@ export class AdvancedWarningDialogComponent implements OnInit, OnDestroy {
 
   // Extend options
   extendOptions: ExtendOption[] = [
-    { label: '15 min', value: 15, icon: '⏱️' },
+    { label: '15 min', value: 15, icon: 'Timer' },
     { label: '30 min', value: 30, icon: '⏰' },
-    { label: '1 hour', value: 60, icon: '🕐' },
-    { label: 'Custom', value: -1, icon: '⚙️' }
+    { label: '1 hour', value: 60, icon: 'Clock' },
+    { label: 'Custom', value: -1, icon: 'Settings' }
   ];
 
   selectedExtendTime = 15;
@@ -1240,8 +1240,8 @@ export class AdvancedWarningDialogComponent implements OnInit, OnDestroy {
       timeRemaining = time;
     });
 
-    if (timeRemaining <= 30000) return '🚨'; // 30 seconds
-    if (timeRemaining <= 60000) return '⚠️';  // 1 minute
+    if (timeRemaining <= 30000) return 'Urgent'; // 30 seconds
+    if (timeRemaining <= 60000) return 'Warning';  // 1 minute
     return '⏰'; // More than 1 minute
   }
 
@@ -1367,7 +1367,7 @@ interface SessionMetrics {
         <h4>Session Metrics</h4>
         <div class="metrics-grid">
           <div class="metric-item">
-            <div class="metric-icon">⏱️</div>
+            <div class="metric-icon">Timer</div>
             <div class="metric-content">
               <div class="metric-value">{{ formatDuration(sessionMetrics.sessionDuration) }}</div>
               <div class="metric-label">Session Duration</div>
@@ -1391,7 +1391,7 @@ interface SessionMetrics {
           </div>
           
           <div class="metric-item">
-            <div class="metric-icon">🔄</div>
+            <div class="metric-icon">Refresh</div>
             <div class="metric-content">
               <div class="metric-value">{{ sessionMetrics.extendCount }}</div>
               <div class="metric-label">Extensions</div>
@@ -1399,7 +1399,7 @@ interface SessionMetrics {
           </div>
           
           <div class="metric-item">
-            <div class="metric-icon">⚠️</div>
+            <div class="metric-icon">Warning</div>
             <div class="metric-content">
               <div class="metric-value">{{ sessionMetrics.warningCount }}</div>
               <div class="metric-label">Warnings</div>
@@ -1432,25 +1432,25 @@ interface SessionMetrics {
             class="btn btn-primary"
             (click)="extendSession()"
             [disabled]="!(idleStatus$ | async) || (idleStatus$ | async) === 'idle'">
-            🔄 Extend Session
+            Extend Session
           </button>
           
           <button 
             class="btn btn-secondary"
             (click)="resetActivity()">
-            ⚡ Record Activity
+            Record Activity
           </button>
           
           <button 
             class="btn btn-warning"
             (click)="showWarning()">
-            ⚠️ Test Warning
+            Test Warning
           </button>
           
           <button 
             class="btn btn-danger"
             (click)="endSession()">
-            🚪 End Session
+            End Session
           </button>
         </div>
       </div>
@@ -1780,7 +1780,7 @@ export class SessionDashboardComponent implements OnInit, OnDestroy {
     ).subscribe(isWarning => {
       if (isWarning) {
         this.sessionMetrics.warningCount++;
-        this.addTimelineEvent('warning', '⚠️', 'Warning shown', new Date());
+        this.addTimelineEvent('warning', 'Warning', 'Warning shown', new Date());
       }
     });
 
@@ -1887,22 +1887,22 @@ export class SessionDashboardComponent implements OnInit, OnDestroy {
   extendSession(): void {
     this.idleService.extendSession();
     this.sessionMetrics.extendCount++;
-    this.addTimelineEvent('extend', '🔄', 'Session extended', new Date());
+    this.addTimelineEvent('extend', 'Refresh', 'Session extended', new Date());
   }
 
   resetActivity(): void {
     this.idleService.reset();
-    this.addTimelineEvent('activity', '⚡', 'Activity recorded', new Date());
+    this.addTimelineEvent('activity', 'Activity', 'Activity recorded', new Date());
   }
 
   showWarning(): void {
     // Temporarily trigger warning for testing
-    this.addTimelineEvent('warning', '⚠️', 'Test warning triggered', new Date());
+    this.addTimelineEvent('warning', 'Warning', 'Test warning triggered', new Date());
   }
 
   endSession(): void {
     this.idleService.logout();
-    this.addTimelineEvent('logout', '🚪', 'Session ended', new Date());
+    this.addTimelineEvent('logout', 'Exit', 'Session ended', new Date());
   }
 }
 ```
@@ -1966,7 +1966,7 @@ export class CheckoutProtectionService {
     // Start auto-save
     this.startAutoSave();
     
-    console.log('🛒 Checkout protection activated');
+    console.log('Checkout protection activated');
   }
 
   endCheckoutProtection(reason: 'completed' | 'abandoned' | 'timeout'): void {
@@ -1988,7 +1988,7 @@ export class CheckoutProtectionService {
       warningTimeout: 180000 // 3 minutes warning
     });
 
-    console.log(`🛒 Checkout protection ended: ${reason}`);
+    console.log(`Checkout protection ended: ${reason}`);
   }
 
   updateCheckoutStep(step: string): void {
@@ -2135,7 +2135,7 @@ import {
       <div class="checkout-header">
         <h1>Secure Checkout</h1>
         <div class="protection-status" *ngIf="isProtected">
-          🛡️ Enhanced Session Protection Active
+          Enhanced Session Protection Active
         </div>
       </div>
 
@@ -2276,7 +2276,7 @@ import {
         [warningData]="warningData"
         theme="dark"
         size="large"
-        titleText="🛒 Checkout Session Expiring"
+        titleText="Checkout Session Expiring"
         messageText="Your checkout session will expire soon. Your progress has been automatically saved."
         extendText="Continue Checkout"
         logoutText="Save & Exit"
@@ -2293,7 +2293,7 @@ import {
 
       <!-- Auto-save Indicator -->
       <div class="auto-save-indicator" [class.visible]="showAutoSaveIndicator">
-        💾 Progress automatically saved
+        Progress automatically saved
       </div>
     </div>
   `,

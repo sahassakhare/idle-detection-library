@@ -36,10 +36,10 @@ const idleManager = new IdleManager({
 
 | Property | Type | Description | Read-only |
 |----------|------|-------------|-----------|
-| `isRunning` | `boolean` | Whether idle detection is currently active | ✓ |
-| `lastActivity` | `number` | Timestamp of last detected activity | ✓ |
-| `idleTimeout` | `number` | Current idle timeout in milliseconds | ✓ |
-| `warningTimeout` | `number` | Current warning timeout in milliseconds | ✓ |
+| `isRunning` | `boolean` | Whether idle detection is currently active | Yes |
+| `lastActivity` | `number` | Timestamp of last detected activity | Yes |
+| `idleTimeout` | `number` | Current idle timeout in milliseconds | Yes |
+| `warningTimeout` | `number` | Current warning timeout in milliseconds | Yes |
 
 ### Methods
 

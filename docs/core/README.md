@@ -30,13 +30,13 @@ The Core Idle Detection Library provides a robust foundation for monitoring user
 
 ## Features
 
-- ✅ **Activity Detection**: Mouse, keyboard, touch, scroll, and focus events
-- ✅ **Configurable Timeouts**: Separate idle and warning timeouts
-- ✅ **Event System**: Comprehensive event lifecycle management
-- ✅ **Multi-Tab Coordination**: Share idle state across browser tabs
-- ✅ **Interrupt Handling**: Graceful interruption and resumption
-- ✅ **Debug Logging**: Built-in logging for troubleshooting
-- ✅ **Performance Optimized**: Efficient event handling with minimal overhead
+- **Activity Detection**: Mouse, keyboard, touch, scroll, and focus events
+- **Configurable Timeouts**: Separate idle and warning timeouts
+- **Event System**: Comprehensive event lifecycle management
+- **Multi-Tab Coordination**: Share idle state across browser tabs
+- **Interrupt Handling**: Graceful interruption and resumption
+- **Debug Logging**: Built-in logging for troubleshooting
+- **Performance Optimized**: Efficient event handling with minimal overhead
 
 ## Installation
 

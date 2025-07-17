@@ -6,13 +6,13 @@ Welcome to the comprehensive documentation for the Idle Detection Library ecosys
 
 This documentation is organized into two main sections:
 
-### 📁 [Core Library Documentation](./core/)
+### [Core Library Documentation](./core/)
 Framework-agnostic JavaScript library for idle detection.
 
 - **[Core README](./core/README.md)** - Complete guide with examples and best practices
 - **[Core API Reference](./core/API.md)** - Detailed API documentation
 
-### 📁 [Angular Integration Documentation](./angular-integration/)
+### [Angular Integration Documentation](./angular-integration/)
 Angular-specific integration with OAuth support and NgRx state management.
 
 - **[Angular README](./angular-integration/README.md)** - Complete Angular integration guide

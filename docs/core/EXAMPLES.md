@@ -25,17 +25,17 @@ const idleManager = new IdleManager({
 
 // Handle idle events
 idleManager.on('idle-start', () => {
-  console.log('⚠️ User became idle - showing warning');
+  console.log('User became idle - showing warning');
   showSessionWarning();
 });
 
 idleManager.on('timeout', () => {
-  console.log('🚪 Session timed out - logging out');
+  console.log('Session timed out - logging out');
   performLogout();
 });
 
 idleManager.on('idle-end', () => {
-  console.log('✅ User returned - hiding warning');
+  console.log('User returned - hiding warning');
   hideSessionWarning();
 });
 
@@ -160,7 +160,7 @@ class ProgressiveWarningSystem {
     warningEl.className = `idle-warning idle-warning--${urgency}`;
     warningEl.innerHTML = `
       <div class="warning-content">
-        <div class="warning-icon">⚠️</div>
+        <div class="warning-icon">Warning</div>
         <div class="warning-text">${text}</div>
         <div class="warning-actions">
           <button onclick="progressiveWarning.extendSession()">Continue Session</button>
@@ -231,7 +231,7 @@ class ProgressiveWarningSystem {
   extendSession() {
     this.idleManager.reset();
     this.clearWarnings();
-    console.log('✅ Session extended');
+    console.log('Session extended');
   }
 
   logout() {
@@ -248,7 +248,7 @@ class ProgressiveWarningSystem {
   stop() {
     this.clearWarnings();
     this.idleManager.stop();
-    console.log('🔴 Progressive warning system stopped');
+    console.log('Progressive warning system stopped');
   }
 }
 
@@ -440,7 +440,7 @@ function IdleWarningModal({ timeRemaining, onExtend, onLogout }) {
   return (
     <div className="modal-overlay">
       <div className="modal">
-        <h3>⚠️ Session Expiring</h3>
+        <h3>Session Expiring</h3>
         <p>
           Your session will expire in{' '}
           <strong>
@@ -606,7 +606,7 @@ export default VueIdlePlugin;
     <!-- Warning modal -->
     <div v-if="idleState.isWarning" class="modal-overlay">
       <div class="modal">
-        <h3>⚠️ Session Expiring</h3>
+        <h3>Session Expiring</h3>
         <p>
           Your session will expire in 
           <strong>{{ formattedTimeRemaining }}</strong>
@@ -804,7 +804,7 @@ class MultiTabIdleManager {
     });
 
     this.idleManager.on('timeout', () => {
-      console.log('🔴 This tab timed out');
+      console.log('This tab timed out');
       this.handleGlobalTimeout();
     });
 
@@ -874,7 +874,7 @@ class MultiTabIdleManager {
                   display: flex; align-items: center; justify-content: center;">
         <div style="background: white; padding: 2rem; border-radius: 8px; 
                     text-align: center; max-width: 500px;">
-          <h3>🌐 Global Session Warning</h3>
+          <h3>Global Session Warning</h3>
           <p>All browser tabs are idle. Your session will expire soon.</p>
           <div id="tab-status"></div>
           <div style="margin-top: 1rem;">
@@ -1003,7 +1003,7 @@ class MultiTabIdleManager {
   stop() {
     this.idleManager.stop();
     this.broadcastTabStatus('closed');
-    console.log(`🔴 Multi-tab idle detection stopped for tab ${this.tabId}`);
+    console.log(`Multi-tab idle detection stopped for tab ${this.tabId}`);
   }
 }
 
@@ -1095,7 +1095,7 @@ class ActivityAnalytics {
       timezone: Intl.DateTimeFormat().resolvedOptions().timeZone
     };
 
-    console.log('📊 Analytics session started:', this.currentSession.id);
+    console.log('Analytics session started:', this.currentSession.id);
   }
 
   recordActivity(data) {
@@ -1157,7 +1157,7 @@ class ActivityAnalytics {
     // Clear current session
     this.currentSession = null;
 
-    console.log('📊 Analytics session ended:', reason);
+    console.log('Analytics session ended:', reason);
   }
 
   generateSessionReport(session) {
@@ -1175,7 +1175,7 @@ class ActivityAnalytics {
       endReason: session.endReason
     };
 
-    console.log('📊 Session Report:', report);
+    console.log('Session Report:', report);
     this.displaySessionReport(report);
     
     return report;
@@ -1236,7 +1236,7 @@ class ActivityAnalytics {
     const recentActivities = this.currentSession.activities.slice(-5);
 
     displayEl.innerHTML = `
-      <strong>📊 Activity Analytics</strong><br>
+      <strong>Activity Analytics</strong><br>
       <div style="margin: 8px 0;">
         Session: ${this.formatDuration(sessionTime)}<br>
         Activities: ${this.currentSession.activities.length}<br>
@@ -1278,7 +1278,7 @@ class ActivityAnalytics {
     `;
 
     reportEl.innerHTML = `
-      <h3 style="margin-top: 0;">📊 Session Analytics Report</h3>
+      <h3 style="margin-top: 0;">Session Analytics Report</h3>
       
       <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin: 1rem 0;">
         <div>
@@ -1351,7 +1351,7 @@ class ActivityAnalytics {
     a.click();
     
     URL.revokeObjectURL(url);
-    console.log('📊 Analytics data exported');
+    console.log('Analytics data exported');
   }
 
   generateSummaryStats() {
@@ -1374,7 +1374,7 @@ class ActivityAnalytics {
 
   start() {
     this.idleManager.watch();
-    console.log('📊 Activity analytics started');
+    console.log('Activity analytics started');
   }
 
   stop() {
@@ -1382,7 +1382,7 @@ class ActivityAnalytics {
       this.endSession('manual');
     }
     this.idleManager.stop();
-    console.log('📊 Activity analytics stopped');
+    console.log('Activity analytics stopped');
   }
 }
 
@@ -1460,7 +1460,7 @@ class CheckoutProtection {
     // Extend idle timeout for checkout
     this.idleManager.setIdleTimeout(1800000); // 30 minutes for checkout
     
-    console.log('🛒 Checkout protection activated');
+    console.log('Checkout protection activated');
     this.showCheckoutStatus();
   }
 
@@ -1475,7 +1475,7 @@ class CheckoutProtection {
       this.clearSavedProgress();
     }
     
-    console.log(`🛒 Checkout ended: ${reason}`);
+    console.log(`Checkout ended: ${reason}`);
     this.hideCheckoutStatus();
   }
 
@@ -1495,7 +1495,7 @@ class CheckoutProtection {
     // Update UI
     this.showAutoSaveIndicator();
     
-    console.log('💾 Checkout progress auto-saved');
+    console.log('Checkout progress auto-saved');
   }
 
   collectCheckoutFormData() {
@@ -1534,7 +1534,7 @@ class CheckoutProtection {
         <div style="background: white; padding: 2rem; border-radius: 12px; 
                     text-align: center; max-width: 500px; box-shadow: 0 8px 24px rgba(0,0,0,0.3);">
           
-          <div style="font-size: 48px; margin-bottom: 1rem;">🛒</div>
+          <div style="font-size: 48px; margin-bottom: 1rem;">Cart</div>
           <h3 style="color: #e74c3c; margin: 0 0 1rem 0;">Checkout Session Expiring</h3>
           
           <p style="margin: 1rem 0; color: #666;">
@@ -1543,7 +1543,7 @@ class CheckoutProtection {
           </p>
           
           <div style="background: #f8f9fa; padding: 1rem; border-radius: 8px; margin: 1rem 0;">
-            <strong>🛡️ Your cart is protected:</strong><br>
+            <strong>Your cart is protected:</strong><br>
             <small>• Cart items: ${this.cartData.items?.length || 0}</small><br>
             <small>• Form progress: Saved</small><br>
             <small>• Session: ${this.formatCheckoutTime()}</small>
@@ -1587,7 +1587,7 @@ class CheckoutProtection {
                   background: #fff3cd; color: #856404; padding: 1rem; 
                   border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.2); 
                   z-index: 10000; max-width: 300px;">
-        <h4 style="margin: 0 0 0.5rem 0;">⚠️ Session Expiring</h4>
+        <h4 style="margin: 0 0 0.5rem 0;">Session Expiring</h4>
         <p style="margin: 0 0 1rem 0; font-size: 14px;">
           Your session will expire in 1 minute due to inactivity.
         </p>
@@ -1639,7 +1639,7 @@ class CheckoutProtection {
   continueCheckout() {
     this.idleManager.reset();
     this.hideWarning();
-    console.log('🛒 Checkout continued');
+    console.log('Checkout continued');
   }
 
   saveAndExit() {
@@ -1687,7 +1687,7 @@ class CheckoutProtection {
       <div style="position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); 
                   background: white; padding: 2rem; border-radius: 12px; text-align: center; 
                   box-shadow: 0 8px 24px rgba(0,0,0,0.3); z-index: 10001;">
-        <div style="font-size: 48px; margin-bottom: 1rem;">💾</div>
+        <div style="font-size: 48px; margin-bottom: 1rem;">Save</div>
         <h3 style="margin: 0 0 1rem 0;">Checkout Progress Saved</h3>
         <p>Your checkout session expired, but don't worry!<br>
            Your progress has been saved and you'll be redirected to your cart.</p>
@@ -1706,7 +1706,7 @@ class CheckoutProtection {
                   background: #d4edda; color: #155724; padding: 1rem; 
                   border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.2); 
                   z-index: 10000;">
-        ✅ Checkout progress saved successfully!
+        Checkout progress saved successfully!
       </div>
     `;
     document.body.appendChild(confirmEl);
@@ -1738,7 +1738,7 @@ class CheckoutProtection {
       document.body.appendChild(indicator);
     }
     
-    indicator.textContent = '💾 Progress saved';
+    indicator.textContent = 'Progress saved';
     indicator.style.opacity = '1';
     
     setTimeout(() => {
@@ -1761,7 +1761,7 @@ class CheckoutProtection {
       z-index: 1000;
     `;
     statusEl.innerHTML = `
-      🛒 Checkout Protection Active<br>
+      Checkout Protection Active<br>
       <small>Extended timeout: 30 minutes</small>
     `;
     
@@ -1795,7 +1795,7 @@ class CheckoutProtection {
 
   clearSavedProgress() {
     localStorage.removeItem('checkout_progress');
-    console.log('🗑️ Checkout progress cleared');
+    console.log('Checkout progress cleared');
   }
 
   restoreProgress() {
@@ -1804,7 +1804,7 @@ class CheckoutProtection {
       try {
         const progressData = JSON.parse(saved);
         this.restoreFormData(progressData.formData);
-        console.log('🔄 Checkout progress restored');
+        console.log('Checkout progress restored');
         return true;
       } catch (e) {
         console.error('Failed to restore checkout progress:', e);
@@ -1839,12 +1839,12 @@ class CheckoutProtection {
 
   start() {
     this.idleManager.watch();
-    console.log('🛒 Checkout protection started');
+    console.log('Checkout protection started');
   }
 
   stop() {
     this.idleManager.stop();
-    console.log('🛒 Checkout protection stopped');
+    console.log('Checkout protection stopped');
   }
 }
 
@@ -1869,7 +1869,7 @@ document.addEventListener('DOMContentLoaded', () => {
         background: #d4edda; color: #155724; padding: 12px 20px;
         border-radius: 8px; z-index: 1000;
       `;
-      notification.textContent = '🔄 Your checkout progress has been restored!';
+      notification.textContent = 'Your checkout progress has been restored!';
       document.body.appendChild(notification);
       
       setTimeout(() => notification.remove(), 5000);

@@ -33,16 +33,16 @@ The Angular Idle Detection library extends the core idle detection functionality
 
 ## Features
 
-- ✅ **OAuth Token Management**: Automatic token refresh before expiration
-- ✅ **Session Extension**: User-friendly session extension dialogs
-- ✅ **NgRx Integration**: Full reactive state management
-- ✅ **Customizable Warning Dialog**: Themeable UI components
-- ✅ **Multi-Tab Coordination**: Synchronized state across tabs
-- ✅ **Route Guards**: Protect routes based on idle state
-- ✅ **HTTP Interceptors**: Activity detection from HTTP requests
-- ✅ **Standalone Components**: Angular 15+ standalone architecture
-- ✅ **Accessibility**: WCAG compliant warning dialogs
-- ✅ **Responsive Design**: Mobile-friendly components
+- **OAuth Token Management**: Automatic token refresh before expiration
+- **Session Extension**: User-friendly session extension dialogs
+- **NgRx Integration**: Full reactive state management
+- **Customizable Warning Dialog**: Themeable UI components
+- **Multi-Tab Coordination**: Synchronized state across tabs
+- **Route Guards**: Protect routes based on idle state
+- **HTTP Interceptors**: Activity detection from HTTP requests
+- **Standalone Components**: Angular 15+ standalone architecture
+- **Accessibility**: WCAG compliant warning dialogs
+- **Responsive Design**: Mobile-friendly components
 
 ## Installation
 
@@ -308,10 +308,10 @@ A customizable dialog component for displaying session warnings.
   [warningData]="warningData"
   theme="dark"
   size="large"
-  titleText="🔒 Security Notice"
+  titleText="Security Notice"
   messageText="For your security, we'll log you out in {{timeRemaining}} seconds due to inactivity."
-  extendText="🔄 Keep Me Logged In"
-  logoutText="🚪 Logout Now"
+  extendText="Keep Me Logged In"
+  logoutText="Logout Now"
   [showProgressBar]="true"
   [showCountdown]="true"
   [customStyles]="{
@@ -511,10 +511,10 @@ import {
         [warningData]="warningData"
         theme="default"
         size="medium"
-        titleText="⚠️ Session Expiring"
+        titleText="Session Expiring"
         messageText="Your session will expire due to inactivity."
-        extendText="🔄 Continue Working"
-        logoutText="🚪 Logout"
+        extendText="Continue Working"
+        logoutText="Logout"
         [showProgressBar]="true"
         [showCountdown]="true"
         (extendSession)="onExtendSession()"
@@ -805,7 +805,7 @@ import { IdleWarningData } from '@idle-detection/angular-oauth-integration';
   template: `
     <div class="custom-warning-overlay">
       <div class="custom-warning-dialog">
-        <div class="warning-icon">⚠️</div>
+        <div class="warning-icon">Warning</div>
         <h2>Security Notice</h2>
         <p>
           Your session will expire in 
