@@ -1,0 +1,349 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Idle Detection Demo - onBackdropClick Analysis</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            margin: 0;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            background: white;
+            padding: 30px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        }
+        
+        .status {
+            display: inline-block;
+            padding: 5px 10px;
+            border-radius: 4px;
+            font-weight: 600;
+            margin-bottom: 20px;
+        }
+        
+        .status.active { background: #10b981; color: white; }
+        .status.idle { background: #f59e0b; color: white; }
+        .status.warning { background: #ef4444; color: white; }
+        
+        .event-log {
+            background: #f3f4f6;
+            padding: 20px;
+            border-radius: 6px;
+            max-height: 300px;
+            overflow-y: auto;
+            margin-top: 20px;
+        }
+        
+        .event-item {
+            padding: 5px 0;
+            border-bottom: 1px solid #e5e7eb;
+        }
+        
+        .event-time {
+            color: #6b7280;
+            font-size: 12px;
+        }
+        
+        button {
+            padding: 10px 20px;
+            border: none;
+            border-radius: 6px;
+            font-size: 16px;
+            cursor: pointer;
+            margin-right: 10px;
+            margin-bottom: 10px;
+        }
+        
+        .btn-primary {
+            background: #3b82f6;
+            color: white;
+        }
+        
+        .btn-secondary {
+            background: #6b7280;
+            color: white;
+        }
+        
+        /* Modal Styles - Matching the Angular component */
+        .idle-warning-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.5);
+            display: none;
+            align-items: center;
+            justify-content: center;
+            z-index: 9999;
+            backdrop-filter: blur(2px);
+        }
+        
+        .idle-warning-overlay.show {
+            display: flex;
+        }
+        
+        .idle-warning-dialog {
+            background: white;
+            border-radius: 8px;
+            padding: 24px;
+            width: 90%;
+            max-width: 400px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            animation: slideIn 0.3s ease-out;
+        }
+        
+        @keyframes slideIn {
+            from { transform: scale(0.95); opacity: 0; }
+            to { transform: scale(1); opacity: 1; }
+        }
+        
+        .countdown {
+            text-align: center;
+            font-size: 24px;
+            font-weight: bold;
+            color: #dc2626;
+            margin: 20px 0;
+        }
+        
+        .dialog-actions {
+            display: flex;
+            gap: 12px;
+            justify-content: flex-end;
+            margin-top: 20px;
+        }
+        
+        .dialog-btn {
+            padding: 8px 16px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 500;
+            position: relative;
+            z-index: 10;
+        }
+        
+        .dialog-btn:focus {
+            outline: 2px solid #3b82f6;
+            outline-offset: 2px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Idle Detection Demo - onBackdropClick Analysis</h1>
+        
+        <div>
+            <strong>Status:</strong> <span id="status" class="status active">Active</span>
+        </div>
+        
+        <div>
+            <strong>Time until idle:</strong> <span id="idleTimer">10s</span>
+        </div>
+        
+        <div>
+            <strong>Backdrop Close Enabled:</strong> 
+            <input type="checkbox" id="backdropCloseToggle" onchange="toggleBackdropClose()">
+            <span id="backdropStatus">Disabled (Safe)</span>
+        </div>
+        
+        <h2>Actions</h2>
+        <button class="btn-primary" onclick="simulateActivity()">Simulate Activity</button>
+        <button class="btn-primary" onclick="showWarningDialog()">Show Warning Dialog</button>
+        <button class="btn-secondary" onclick="clearLog()">Clear Log</button>
+        
+        <h2>Event Log</h2>
+        <div id="eventLog" class="event-log">
+            <div class="event-item">
+                <span class="event-time">--:--:--</span> Demo started
+            </div>
+        </div>
+    </div>
+    
+    <!-- Warning Dialog -->
+    <div id="warningOverlay" class="idle-warning-overlay" onclick="handleBackdropClick(event)">
+        <div class="idle-warning-dialog" onclick="event.stopPropagation()">
+            <h2>Session Timeout Warning</h2>
+            <p>Your session is about to expire due to inactivity.</p>
+            
+            <div class="countdown" id="countdown">30s</div>
+            
+            <div class="dialog-actions">
+                <button class="dialog-btn btn-primary" onclick="extendSession()" onmousedown="event.stopPropagation()">
+                    Yes, Continue
+                </button>
+                <button class="dialog-btn btn-secondary" onclick="logout()" onmousedown="event.stopPropagation()">
+                    No, Logout
+                </button>
+            </div>
+        </div>
+    </div>
+    
+    <script>
+        let idleTimeout = 10000; // 10 seconds
+        let warningTimeout = 30000; // 30 seconds
+        let idleTimer = null;
+        let warningTimer = null;
+        let countdownTimer = null;
+        let lastActivity = Date.now();
+        let backdropCloseEnabled = false;
+        let countdownValue = 30;
+        
+        // Track mouse and keyboard events
+        const activityEvents = ['click', 'mousemove', 'keydown', 'scroll', 'touchstart'];
+        
+        function log(message) {
+            const logElement = document.getElementById('eventLog');
+            const time = new Date().toLocaleTimeString();
+            const eventDiv = document.createElement('div');
+            eventDiv.className = 'event-item';
+            eventDiv.innerHTML = `<span class="event-time">${time}</span> ${message}`;
+            logElement.insertBefore(eventDiv, logElement.firstChild);
+            
+            // Keep only last 20 events
+            while (logElement.children.length > 20) {
+                logElement.removeChild(logElement.lastChild);
+            }
+        }
+        
+        function updateStatus(status) {
+            const statusElement = document.getElementById('status');
+            statusElement.textContent = status;
+            statusElement.className = 'status ' + status.toLowerCase();
+        }
+        
+        function resetIdleTimer() {
+            clearTimeout(idleTimer);
+            clearTimeout(warningTimer);
+            clearInterval(countdownTimer);
+            
+            lastActivity = Date.now();
+            updateStatus('Active');
+            hideWarningDialog();
+            
+            // Update idle countdown
+            let countdown = 10;
+            const updateCountdown = () => {
+                document.getElementById('idleTimer').textContent = countdown + 's';
+                countdown--;
+                if (countdown < 0) {
+                    clearInterval(countdownInterval);
+                    onIdle();
+                }
+            };
+            
+            const countdownInterval = setInterval(updateCountdown, 1000);
+            
+            idleTimer = setTimeout(() => {
+                clearInterval(countdownInterval);
+                onIdle();
+            }, idleTimeout);
+        }
+        
+        function onIdle() {
+            log('🟡 User went idle');
+            updateStatus('Idle');
+            showWarningDialog();
+        }
+        
+        function showWarningDialog() {
+            log('⚠️ Warning dialog shown');
+            updateStatus('Warning');
+            document.getElementById('warningOverlay').classList.add('show');
+            
+            // Start countdown
+            countdownValue = 30;
+            updateCountdown();
+            countdownTimer = setInterval(updateCountdown, 1000);
+            
+            // Auto logout after warning timeout
+            warningTimer = setTimeout(() => {
+                logout();
+            }, warningTimeout);
+        }
+        
+        function updateCountdown() {
+            document.getElementById('countdown').textContent = countdownValue + 's';
+            countdownValue--;
+            if (countdownValue < 0) {
+                clearInterval(countdownTimer);
+            }
+        }
+        
+        function hideWarningDialog() {
+            document.getElementById('warningOverlay').classList.remove('show');
+            clearInterval(countdownTimer);
+            clearTimeout(warningTimer);
+        }
+        
+        function handleBackdropClick(event) {
+            // This simulates the onBackdropClick behavior from the Angular component
+            event.preventDefault();
+            event.stopPropagation();
+            
+            if (backdropCloseEnabled) {
+                log('🔴 Backdrop clicked - LOGOUT triggered (backdropClose enabled)');
+                logout();
+            } else {
+                log('🟢 Backdrop clicked - Ignored (backdropClose disabled - SAFE)');
+            }
+        }
+        
+        function extendSession() {
+            log('✅ Session extended');
+            hideWarningDialog();
+            resetIdleTimer();
+        }
+        
+        function logout() {
+            log('🚪 Logout');
+            hideWarningDialog();
+            updateStatus('Logged Out');
+            clearTimeout(idleTimer);
+            clearInterval(countdownTimer);
+            alert('Session ended. Refresh page to start again.');
+        }
+        
+        function simulateActivity() {
+            log('👆 Activity simulated');
+            resetIdleTimer();
+        }
+        
+        function toggleBackdropClose() {
+            backdropCloseEnabled = document.getElementById('backdropCloseToggle').checked;
+            document.getElementById('backdropStatus').textContent = 
+                backdropCloseEnabled ? 'Enabled (Risky!)' : 'Disabled (Safe)';
+            log(backdropCloseEnabled ? 
+                '⚠️ Backdrop close ENABLED - clicks outside dialog will logout!' : 
+                '✅ Backdrop close DISABLED - clicks outside dialog are safe');
+        }
+        
+        function clearLog() {
+            document.getElementById('eventLog').innerHTML = '';
+            log('Log cleared');
+        }
+        
+        // Initialize
+        activityEvents.forEach(event => {
+            document.addEventListener(event, () => {
+                if (document.getElementById('status').textContent !== 'Logged Out') {
+                    resetIdleTimer();
+                }
+            });
+        });
+        
+        // Start monitoring
+        resetIdleTimer();
+        log('✅ Idle detection initialized');
+    </script>
+</body>
+</html>

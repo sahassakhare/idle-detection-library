@@ -335,7 +335,7 @@ export class IdleWarningDialogComponent implements OnInit, OnDestroy {
   @Input() autoClose?: boolean = false;
   @Input() theme?: 'default' | 'dark' | 'minimal' = 'default';
   @Input() size?: 'small' | 'medium' | 'large' = 'medium';
-  @Input() backdropClose?: boolean = false;
+  // backdropClose removed - clicking outside should never close session timeout dialogs (industry standard)
   @Input() customStyles?: { [key: string]: string };
   
   // CSS class customization
@@ -475,11 +475,11 @@ export class IdleWarningDialogComponent implements OnInit, OnDestroy {
   }
 
   onBackdropClick(event: Event): void {
-    if (this.backdropClose) {
-      event.preventDefault();
-      event.stopPropagation();
-      this.onLogout();
-    }
+    // Always prevent backdrop clicks from closing the dialog
+    // This follows industry standards for critical session management dialogs
+    event.preventDefault();
+    event.stopPropagation();
+    console.log('Backdrop clicked - ignored for security (industry standard)');
   }
 
   onMouseDown(event: Event): void {

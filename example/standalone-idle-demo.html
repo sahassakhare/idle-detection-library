@@ -1,0 +1,593 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Idle Detection Demo - Industry Standard onBackdropClick</title>
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            padding: 20px;
+            background: #f8fafc;
+            line-height: 1.6;
+        }
+        
+        .container {
+            max-width: 900px;
+            margin: 0 auto;
+            background: white;
+            padding: 30px;
+            border-radius: 12px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05);
+        }
+        
+        h1 { color: #1e293b; margin-bottom: 10px; }
+        h2 { color: #475569; margin: 30px 0 15px 0; }
+        
+        .status-card {
+            background: #f1f5f9;
+            padding: 20px;
+            border-radius: 8px;
+            margin: 20px 0;
+            border-left: 4px solid #10b981;
+        }
+        
+        .status-text {
+            font-size: 18px;
+            font-weight: 600;
+            color: #059669;
+        }
+        
+        .status-detail {
+            font-size: 14px;
+            color: #64748b;
+            margin-top: 5px;
+        }
+        
+        .info-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+            margin: 20px 0;
+        }
+        
+        .info-item {
+            background: #f8fafc;
+            padding: 15px;
+            border-radius: 6px;
+            border: 1px solid #e2e8f0;
+        }
+        
+        .info-label {
+            font-size: 12px;
+            color: #64748b;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin-bottom: 5px;
+        }
+        
+        .info-value {
+            font-size: 18px;
+            font-weight: 600;
+            color: #1e293b;
+        }
+        
+        .controls {
+            display: flex;
+            gap: 15px;
+            margin: 20px 0;
+            flex-wrap: wrap;
+        }
+        
+        button {
+            padding: 12px 24px;
+            border: none;
+            border-radius: 8px;
+            font-size: 14px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        
+        .btn-primary {
+            background: #3b82f6;
+            color: white;
+        }
+        
+        .btn-primary:hover {
+            background: #2563eb;
+            transform: translateY(-1px);
+        }
+        
+        .btn-secondary {
+            background: #64748b;
+            color: white;
+        }
+        
+        .btn-secondary:hover {
+            background: #475569;
+            transform: translateY(-1px);
+        }
+        
+        .btn-success {
+            background: #10b981;
+            color: white;
+        }
+        
+        .btn-success:hover {
+            background: #059669;
+        }
+        
+        /* Modal Styles - Matching Angular Component */
+        .modal-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.5);
+            display: none;
+            align-items: center;
+            justify-content: center;
+            z-index: 10000;
+            backdrop-filter: blur(2px);
+        }
+        
+        .modal-overlay.show {
+            display: flex;
+        }
+        
+        .modal-dialog {
+            background: white;
+            border-radius: 12px;
+            padding: 30px;
+            width: 90%;
+            max-width: 450px;
+            box-shadow: 0 25px 50px rgba(0, 0, 0, 0.25);
+            animation: modalSlideIn 0.3s ease-out;
+            position: relative;
+        }
+        
+        @keyframes modalSlideIn {
+            from {
+                transform: scale(0.95) translateY(-10px);
+                opacity: 0;
+            }
+            to {
+                transform: scale(1) translateY(0);
+                opacity: 1;
+            }
+        }
+        
+        .modal-header {
+            margin-bottom: 20px;
+        }
+        
+        .modal-title {
+            font-size: 20px;
+            font-weight: 600;
+            color: #dc2626;
+            margin: 0;
+        }
+        
+        .modal-body {
+            margin-bottom: 25px;
+        }
+        
+        .modal-message {
+            color: #374151;
+            margin-bottom: 20px;
+        }
+        
+        .countdown-display {
+            background: linear-gradient(135deg, #fee2e2, #fecaca);
+            border: 2px solid #f87171;
+            border-radius: 8px;
+            padding: 15px;
+            text-align: center;
+            margin: 15px 0;
+        }
+        
+        .countdown-label {
+            display: block;
+            font-size: 13px;
+            color: #991b1b;
+            font-weight: 500;
+            margin-bottom: 5px;
+        }
+        
+        .countdown-time {
+            font-size: 28px;
+            font-weight: 700;
+            color: #dc2626;
+            font-family: 'SF Mono', 'Monaco', 'Consolas', monospace;
+        }
+        
+        .modal-actions {
+            display: flex;
+            gap: 12px;
+            justify-content: flex-end;
+        }
+        
+        .modal-btn {
+            padding: 10px 20px;
+            border: none;
+            border-radius: 6px;
+            font-size: 14px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.2s;
+            position: relative;
+            z-index: 10;
+        }
+        
+        .modal-btn-primary {
+            background: #3b82f6;
+            color: white;
+        }
+        
+        .modal-btn-primary:hover {
+            background: #2563eb;
+        }
+        
+        .modal-btn-secondary {
+            background: #6b7280;
+            color: white;
+        }
+        
+        .modal-btn-secondary:hover {
+            background: #4b5563;
+        }
+        
+        .event-log {
+            background: #f8fafc;
+            border: 1px solid #e2e8f0;
+            border-radius: 8px;
+            padding: 20px;
+            max-height: 300px;
+            overflow-y: auto;
+            margin-top: 20px;
+        }
+        
+        .event-item {
+            display: flex;
+            align-items: flex-start;
+            gap: 10px;
+            padding: 8px 0;
+            border-bottom: 1px solid #e2e8f0;
+        }
+        
+        .event-item:last-child {
+            border-bottom: none;
+        }
+        
+        .event-time {
+            color: #64748b;
+            font-size: 12px;
+            font-family: monospace;
+            min-width: 60px;
+        }
+        
+        .event-message {
+            color: #1e293b;
+            font-size: 14px;
+            flex: 1;
+        }
+        
+        .industry-standard-notice {
+            background: linear-gradient(135deg, #ecfdf5, #d1fae5);
+            border: 2px solid #10b981;
+            border-radius: 8px;
+            padding: 20px;
+            margin: 20px 0;
+        }
+        
+        .industry-standard-notice h3 {
+            color: #059669;
+            margin: 0 0 10px 0;
+            font-size: 16px;
+        }
+        
+        .industry-standard-notice p {
+            color: #047857;
+            margin: 0;
+            font-size: 14px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🔒 Session Timeout Dialog - Industry Standard Demo</h1>
+        <p style="color: #64748b; margin-bottom: 20px;">
+            This demonstrates the corrected <code>onBackdropClick</code> behavior following industry standards.
+        </p>
+        
+        <div class="industry-standard-notice">
+            <h3>✅ Industry Standard Implemented</h3>
+            <p>Backdrop clicks are now completely disabled for session timeout dialogs. This matches the behavior of banking apps, Google Workspace, Microsoft 365, and AWS Console.</p>
+        </div>
+        
+        <div class="status-card">
+            <div class="status-text" id="status">Ready to Start</div>
+            <div class="status-detail" id="statusDetail">Click "Start Idle Detection" to begin the demo</div>
+        </div>
+        
+        <div class="info-grid">
+            <div class="info-item">
+                <div class="info-label">Session Status</div>
+                <div class="info-value" id="sessionStatus">Active</div>
+            </div>
+            <div class="info-item">
+                <div class="info-label">Time Until Idle</div>
+                <div class="info-value" id="idleCountdown">10s</div>
+            </div>
+            <div class="info-item">
+                <div class="info-label">Last Activity</div>
+                <div class="info-value" id="lastActivity">Just now</div>
+            </div>
+            <div class="info-item">
+                <div class="info-label">Backdrop Behavior</div>
+                <div class="info-value" style="color: #10b981;">Disabled (Safe)</div>
+            </div>
+        </div>
+        
+        <h2>Controls</h2>
+        <div class="controls">
+            <button class="btn-primary" onclick="startIdleDetection()">Start Idle Detection</button>
+            <button class="btn-secondary" onclick="stopIdleDetection()">Stop Detection</button>
+            <button class="btn-success" onclick="simulateActivity()">Simulate Activity</button>
+            <button class="btn-secondary" onclick="showDialog()">Show Warning Dialog</button>
+            <button class="btn-secondary" onclick="clearLog()">Clear Log</button>
+        </div>
+        
+        <h2>Event Log</h2>
+        <div class="event-log" id="eventLog">
+            <div class="event-item">
+                <span class="event-time">--:--:--</span>
+                <span class="event-message">Demo initialized - Ready to test industry standard behavior</span>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Session Timeout Warning Dialog -->
+    <div id="warningModal" class="modal-overlay" onclick="handleBackdropClick(event)">
+        <div class="modal-dialog" onclick="event.stopPropagation()">
+            <div class="modal-header">
+                <h2 class="modal-title">⚠️ Session Timeout Warning</h2>
+            </div>
+            
+            <div class="modal-body">
+                <p class="modal-message">
+                    Your session is about to expire due to inactivity. Would you like to continue?
+                </p>
+                
+                <div class="countdown-display">
+                    <span class="countdown-label">Time Remaining</span>
+                    <span class="countdown-time" id="modalCountdown">30s</span>
+                </div>
+            </div>
+            
+            <div class="modal-actions">
+                <button class="modal-btn modal-btn-primary" onclick="extendSession()" onmousedown="event.stopPropagation()">
+                    ✅ Yes, Continue
+                </button>
+                <button class="modal-btn modal-btn-secondary" onclick="logout()" onmousedown="event.stopPropagation()">
+                    🚪 No, Logout
+                </button>
+            </div>
+        </div>
+    </div>
+    
+    <script>
+        let idleTimer = null;
+        let warningTimer = null;
+        let countdownTimer = null;
+        let isDetectionActive = false;
+        let warningCountdown = 30;
+        let idleCountdownValue = 10;
+        
+        const activityEvents = ['click', 'mousemove', 'keydown', 'scroll', 'touchstart'];
+        
+        function log(message) {
+            const eventLog = document.getElementById('eventLog');
+            const time = new Date().toLocaleTimeString();
+            
+            const eventDiv = document.createElement('div');
+            eventDiv.className = 'event-item';
+            eventDiv.innerHTML = `
+                <span class="event-time">${time}</span>
+                <span class="event-message">${message}</span>
+            `;
+            
+            eventLog.insertBefore(eventDiv, eventLog.firstChild);
+            
+            // Keep only last 15 events
+            while (eventLog.children.length > 15) {
+                eventLog.removeChild(eventLog.lastChild);
+            }
+        }
+        
+        function updateStatus(status, detail) {
+            document.getElementById('status').textContent = status;
+            document.getElementById('statusDetail').textContent = detail;
+            document.getElementById('sessionStatus').textContent = status;
+        }
+        
+        function updateLastActivity() {
+            document.getElementById('lastActivity').textContent = 'Just now';
+        }
+        
+        function startIdleDetection() {
+            if (isDetectionActive) return;
+            
+            isDetectionActive = true;
+            updateStatus('Monitoring', 'Watching for user inactivity');
+            log('🟢 Idle detection started - Wait 10 seconds without activity');
+            
+            // Setup activity listeners
+            activityEvents.forEach(event => {
+                document.addEventListener(event, handleActivity);
+            });
+            
+            startIdleTimer();
+        }
+        
+        function stopIdleDetection() {
+            isDetectionActive = false;
+            clearAllTimers();
+            hideDialog();
+            
+            // Remove activity listeners
+            activityEvents.forEach(event => {
+                document.removeEventListener(event, handleActivity);
+            });
+            
+            updateStatus('Stopped', 'Idle detection is not active');
+            log('🛑 Idle detection stopped');
+        }
+        
+        function handleActivity() {
+            if (!isDetectionActive) return;
+            
+            updateLastActivity();
+            
+            // Don't reset during warning (user must click buttons)
+            if (!document.getElementById('warningModal').classList.contains('show')) {
+                resetIdleTimer();
+            }
+        }
+        
+        function startIdleTimer() {
+            clearTimeout(idleTimer);
+            
+            idleCountdownValue = 10;
+            updateIdleCountdown();
+            
+            const countdownInterval = setInterval(() => {
+                idleCountdownValue--;
+                updateIdleCountdown();
+                
+                if (idleCountdownValue <= 0) {
+                    clearInterval(countdownInterval);
+                    triggerIdleWarning();
+                }
+            }, 1000);
+            
+            idleTimer = setTimeout(() => {
+                clearInterval(countdownInterval);
+                triggerIdleWarning();
+            }, 10000);
+        }
+        
+        function resetIdleTimer() {
+            updateStatus('Active', 'User activity detected');
+            startIdleTimer();
+        }
+        
+        function updateIdleCountdown() {
+            document.getElementById('idleCountdown').textContent = idleCountdownValue + 's';
+        }
+        
+        function triggerIdleWarning() {
+            updateStatus('Warning', 'Session timeout warning active');
+            log('⚠️ User is idle - Showing warning dialog');
+            showDialog();
+        }
+        
+        function showDialog() {
+            document.getElementById('warningModal').classList.add('show');
+            warningCountdown = 30;
+            updateModalCountdown();
+            
+            // Start warning countdown
+            countdownTimer = setInterval(() => {
+                warningCountdown--;
+                updateModalCountdown();
+                
+                if (warningCountdown <= 0) {
+                    clearInterval(countdownTimer);
+                    autoLogout();
+                }
+            }, 1000);
+            
+            // Auto logout after 30 seconds
+            warningTimer = setTimeout(() => {
+                autoLogout();
+            }, 30000);
+        }
+        
+        function hideDialog() {
+            document.getElementById('warningModal').classList.remove('show');
+            clearInterval(countdownTimer);
+            clearTimeout(warningTimer);
+        }
+        
+        function updateModalCountdown() {
+            document.getElementById('modalCountdown').textContent = warningCountdown + 's';
+        }
+        
+        function handleBackdropClick(event) {
+            // INDUSTRY STANDARD: Always prevent backdrop clicks from closing session dialogs
+            event.preventDefault();
+            event.stopPropagation();
+            
+            log('🔒 Backdrop clicked - IGNORED (Industry Standard: Session dialogs require explicit button clicks)');
+        }
+        
+        function extendSession() {
+            log('✅ Session extended via "Yes, Continue" button');
+            hideDialog();
+            updateStatus('Extended', 'Session has been extended');
+            
+            if (isDetectionActive) {
+                startIdleTimer();
+            }
+        }
+        
+        function logout() {
+            log('🚪 Logout via "No, Logout" button');
+            hideDialog();
+            stopIdleDetection();
+            updateStatus('Logged Out', 'Session ended by user choice');
+            alert('Session ended. Refresh the page to start a new session.');
+        }
+        
+        function autoLogout() {
+            log('⏰ Automatic logout - Warning timer expired');
+            hideDialog();
+            stopIdleDetection();
+            updateStatus('Timed Out', 'Session expired due to inactivity');
+            alert('Session timed out. Refresh the page to start a new session.');
+        }
+        
+        function simulateActivity() {
+            log('👆 Activity simulated via button click');
+            updateLastActivity();
+            
+            if (isDetectionActive && !document.getElementById('warningModal').classList.contains('show')) {
+                resetIdleTimer();
+            }
+        }
+        
+        function clearAllTimers() {
+            clearTimeout(idleTimer);
+            clearTimeout(warningTimer);
+            clearInterval(countdownTimer);
+        }
+        
+        function clearLog() {
+            document.getElementById('eventLog').innerHTML = `
+                <div class="event-item">
+                    <span class="event-time">${new Date().toLocaleTimeString()}</span>
+                    <span class="event-message">Event log cleared</span>
+                </div>
+            `;
+        }
+        
+        // Initialize
+        log('🚀 Demo ready - Industry standard onBackdropClick behavior implemented');
+    </script>
+</body>
+</html>
