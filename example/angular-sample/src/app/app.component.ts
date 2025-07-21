@@ -3,6 +3,8 @@ import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { fromEvent, merge, Subject } from 'rxjs';
 import { takeUntil, throttleTime } from 'rxjs/operators';
+// Import the simplified idle warning dialog component
+// import { IdleWarningDialogComponent } from '../../../../packages/angular-oauth-integration/src/lib/idle-warning-dialog.component';
 
 @Component({
   selector: 'app-root',

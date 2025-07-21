@@ -6,17 +6,13 @@ import {
   OnInit, 
   OnDestroy,
   ChangeDetectionStrategy,
-  inject,
   signal,
   computed
 } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { Observable, Subject, timer } from 'rxjs';
-import { takeUntil, map, startWith } from 'rxjs/operators';
-import { Store } from '@ngrx/store';
+import { Subject, timer } from 'rxjs';
+import { takeUntil } from 'rxjs/operators';
 import { IdleWarningData } from './types';
-import { selectTimeRemaining, selectIsWarning } from './store/idle.selectors';
-import { IdleOAuthService } from './idle-oauth.service';
 
 @Component({
   selector: 'idle-warning-dialog',
@@ -338,6 +334,13 @@ export class IdleWarningDialogComponent implements OnInit, OnDestroy {
   // backdropClose removed - clicking outside should never close session timeout dialogs (industry standard)
   @Input() customStyles?: { [key: string]: string };
   
+  // Simple inputs to replace store dependencies
+  @Input() initialTimeRemaining?: number = 30000; // 30 seconds default
+  
+  // Callback functions provided by user
+  @Input() onExtendCallback?: () => void;
+  @Input() onLogoutCallback?: () => void;
+  
   // CSS class customization
   @Input() backdropClass: string = 'idle-warning-backdrop';
   @Input() dialogClass: string = 'idle-warning-dialog';
@@ -366,8 +369,7 @@ export class IdleWarningDialogComponent implements OnInit, OnDestroy {
   @Output() logout = new EventEmitter<void>();
 
   private destroy$ = new Subject<void>();
-  private store = inject(Store);
-  private idleOAuthService = inject(IdleOAuthService);
+  private countdownTimer?: any;
   
   timeRemaining = signal(0);
   cssClasses = signal<any>(null);
@@ -408,27 +410,16 @@ export class IdleWarningDialogComponent implements OnInit, OnDestroy {
     if (this.warningData) {
       this.cssClasses.set(this.warningData.cssClasses);
       // Set total time for progress calculation
-      this.totalTime.set(this.warningData.timeRemaining || 30000);
+      this.totalTime.set(this.warningData.timeRemaining || this.initialTimeRemaining || 30000);
+    } else {
+      // Set default values when no warningData is provided
+      this.totalTime.set(this.initialTimeRemaining || 30000);
     }
     
-    // Subscribe to timeRemaining updates from the store
-    this.store.select(selectTimeRemaining).pipe(
-      takeUntil(this.destroy$)
-    ).subscribe(remaining => {
-      this.timeRemaining.set(remaining);
-      if (remaining <= 0 && this.autoClose) {
-        this.onLogout();
-      }
-    });
-    
-    // Subscribe to warning state to auto-close dialog
-    this.store.select(selectIsWarning).pipe(
-      takeUntil(this.destroy$)
-    ).subscribe(isWarning => {
-      if (!isWarning) {
-        // Warning ended, component should be hidden by parent
-      }
-    });
+    // Initialize time remaining and start countdown
+    const initialTime = this.totalTime();
+    this.timeRemaining.set(initialTime);
+    this.startCountdown();
 
     // Focus first button for accessibility
     setTimeout(() => {
@@ -439,39 +430,71 @@ export class IdleWarningDialogComponent implements OnInit, OnDestroy {
     }, 100);
   }
 
+  private startCountdown(): void {
+    this.countdownTimer = setInterval(() => {
+      const currentTime = this.timeRemaining();
+      if (currentTime <= 0) {
+        if (this.autoClose) {
+          this.onLogout();
+        }
+        return;
+      }
+      this.timeRemaining.set(currentTime - 1000);
+    }, 1000);
+  }
+
   ngOnDestroy(): void {
     this.destroy$.next();
     this.destroy$.complete();
+    if (this.countdownTimer) {
+      clearInterval(this.countdownTimer);
+    }
   }
 
   onExtendSession(): void {
-    console.log('🎯 Extend session clicked');
-    console.log('🔍 DEBUG: warningData =', this.warningData);
-    console.log('🔍 DEBUG: onExtendSession exists =', !!this.warningData?.onExtendSession);
+    console.log('Extend session clicked');
     
-    // APPROACH 1: Try warningData callback first
-    if (this.warningData?.onExtendSession) {
-      console.log('🔄 Calling warningData.onExtendSession()');
-      this.warningData.onExtendSession();
-    } else {
-      console.log('⚠️ WARNING: warningData.onExtendSession is not available');
-      console.log('⚠️ WARNING: warningData =', this.warningData);
-      
-      // APPROACH 2: Direct service call as backup
-      console.log('🔄 BACKUP: Calling service directly');
-      this.idleOAuthService.extendSession();
+    // Reset timer if needed
+    if (this.countdownTimer) {
+      clearInterval(this.countdownTimer);
     }
     
-    // Then emit to parent component
+    // Priority 1: User-provided callback
+    if (this.onExtendCallback) {
+      console.log('Calling user-provided onExtendCallback()');
+      this.onExtendCallback();
+    }
+    // Priority 2: warningData callback (backward compatibility)
+    else if (this.warningData?.onExtendSession) {
+      console.log('Calling warningData.onExtendSession()');
+      this.warningData.onExtendSession();
+    }
+    
+    // Always emit to parent component
     this.extendSession.emit();
   }
 
   onLogout(): void {
-    console.log('🚪 Logout clicked');
-    this.logout.emit();
-    if (this.warningData?.onLogout) {
+    console.log('Logout clicked');
+    
+    // Clear timer
+    if (this.countdownTimer) {
+      clearInterval(this.countdownTimer);
+    }
+    
+    // Priority 1: User-provided callback
+    if (this.onLogoutCallback) {
+      console.log('Calling user-provided onLogoutCallback()');
+      this.onLogoutCallback();
+    }
+    // Priority 2: warningData callback (backward compatibility)
+    else if (this.warningData?.onLogout) {
+      console.log('Calling warningData.onLogout()');
       this.warningData.onLogout();
     }
+    
+    // Always emit to parent component
+    this.logout.emit();
   }
 
   onBackdropClick(event: Event): void {
