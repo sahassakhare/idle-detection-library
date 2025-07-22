@@ -1,53 +1,43 @@
-import { Component, OnInit, OnDestroy } from '@angular/core';
+import { Component } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
-import { fromEvent, merge, Subject } from 'rxjs';
-import { takeUntil, throttleTime } from 'rxjs/operators';
-// Import the simplified idle warning dialog component
-// import { IdleWarningDialogComponent } from '../../../../packages/angular-oauth-integration/src/lib/idle-warning-dialog.component';
+import { IdleWarningDialogComponent } from '../../../../packages/angular-oauth-integration/src/lib/idle-warning-dialog.component';
 
 @Component({
   selector: 'app-root',
   standalone: true,
-  imports: [CommonModule, FormsModule],
+  imports: [CommonModule, FormsModule, IdleWarningDialogComponent],
   template: `
     <div class="container">
-      <h1>🔒 Angular Idle Detection Demo</h1>
-      <p class="subtitle">Demonstrating Industry Standard onBackdropClick Behavior</p>
+      <h1>Angular Idle Detection Demo</h1>
+      <p class="subtitle">Complete Idle Detection Solution with Industry Standard Security</p>
       
-      <div class="status-card" [ngClass]="getStatusClass()">
-        <div class="status-text">{{ getStatusText() }}</div>
-        <div class="status-detail">{{ getStatusDetail() }}</div>
+      <div class="feature-grid">
+        <div class="feature-item">
+          <div class="feature-icon">⏱️</div>
+          <div class="feature-title">Auto Idle Detection</div>
+          <div class="feature-description">Automatically monitors user activity</div>
+        </div>
+        <div class="feature-item">
+          <div class="feature-icon">🔒</div>
+          <div class="feature-title">Secure Dialog</div>
+          <div class="feature-description">No backdrop clicks (industry standard)</div>
+        </div>
+        <div class="feature-item">
+          <div class="feature-icon">⚡</div>
+          <div class="feature-title">Zero Setup</div>
+          <div class="feature-description">Just add one component tag</div>
+        </div>
+        <div class="feature-item">
+          <div class="feature-icon">🎨</div>
+          <div class="feature-title">Customizable</div>
+          <div class="feature-description">Themes, timeouts, and messages</div>
+        </div>
       </div>
       
-      <div class="info-grid">
-        <div class="info-item">
-          <div class="info-label">Session Status</div>
-          <div class="info-value">{{ isWatching ? 'Monitoring' : 'Stopped' }}</div>
-        </div>
-        <div class="info-item">
-          <div class="info-label">Time Until Idle</div>
-          <div class="info-value">{{ idleCountdown }}s</div>
-        </div>
-        <div class="info-item">
-          <div class="info-label">Warning State</div>
-          <div class="info-value">{{ isWarning ? 'Active' : 'Inactive' }}</div>
-        </div>
-        <div class="info-item">
-          <div class="info-label">Backdrop Behavior</div>
-          <div class="info-value" style="color: #10b981;">Disabled (Safe)</div>
-        </div>
-      </div>
-      
-      <div class="controls">
-        <button class="btn btn-primary" (click)="toggleWatching()">
-          {{ isWatching ? 'Stop Watching' : 'Start Watching' }}
-        </button>
-        <button class="btn btn-secondary" (click)="simulateActivity()">
-          Simulate Activity
-        </button>
-        <button class="btn btn-secondary" (click)="showWarningDialog()">
-          Show Warning Dialog
+      <div class="demo-controls">
+        <button class="btn btn-primary" (click)="logEvent('User clicked demo button')">
+          Test Activity Detection
         </button>
         <button class="btn btn-secondary" (click)="clearLog()">
           Clear Log
@@ -57,57 +47,46 @@ import { takeUntil, throttleTime } from 'rxjs/operators';
       <div class="industry-notice">
         <h3>✅ Industry Standard Implementation</h3>
         <p>
-          Backdrop clicks are now completely disabled for session timeout dialogs. 
-          This matches the behavior of banking apps, Google Workspace, Microsoft 365, and AWS Console.
-          Users must explicitly click action buttons to dismiss the dialog.
+          This component follows industry standards for session timeout dialogs:
+          backdrop clicks are disabled, explicit user action is required, and the dialog
+          provides clear countdown and messaging.
         </p>
       </div>
       
       <div class="event-log">
-        <h3>Event Log</h3>
+        <h3>Activity Log</h3>
         <div class="log-content">
           <div *ngFor="let event of eventLog" class="event-item">
             <span class="event-time">{{ event.timestamp }}</span>
             <span class="event-message">{{ event.message }}</span>
           </div>
           <div *ngIf="eventLog.length === 0" class="no-events">
-            No events yet. Start watching to see idle detection in action.
+            Move your mouse, type, or click to see activity detection in action.
           </div>
         </div>
       </div>
     </div>
     
-    <!-- Session Timeout Warning Dialog -->
-    <div *ngIf="isWarning" class="modal-overlay" (click)="onBackdropClick($event)">
-      <div class="modal-dialog" (click)="$event.stopPropagation()">
-        <div class="modal-header">
-          <h2 class="modal-title">⚠️ Session Timeout Warning</h2>
-        </div>
-        
-        <div class="modal-body">
-          <p>Your session is about to expire due to inactivity. Would you like to continue?</p>
-          
-          <div class="countdown-display">
-            <span class="countdown-label">Time Remaining</span>
-            <span class="countdown-time">{{ formatTime(warningCountdown * 1000) }}</span>
-          </div>
-          
-          <div class="backdrop-explanation">
-            <strong>🔒 Industry Standard:</strong> Clicking outside this dialog will NOT close it.
-            You must choose an action below.
-          </div>
-        </div>
-        
-        <div class="modal-actions">
-          <button class="modal-btn modal-btn-primary" (click)="extendSession()" (mousedown)="$event.stopPropagation()">
-            ✅ Yes, Continue
-          </button>
-          <button class="modal-btn modal-btn-secondary" (click)="logout()" (mousedown)="$event.stopPropagation()">
-            🚪 No, Logout
-          </button>
-        </div>
-      </div>
-    </div>
+    <!-- Complete idle detection solution - no *ngIf needed! -->
+    <idle-warning-dialog
+      [idleTimeout]="10000"
+      [warningTimeout]="5000"
+      [onLogoutCallback]="handleLogout"
+      [onExtendCallback]="handleExtend"
+      dialogTitle="Session Timeout Warning"
+      dialogMessage="Your session is about to expire due to inactivity. Would you like to continue?"
+      extendButtonText="Yes, Continue"
+      logoutButtonText="No, Logout"
+      theme="default"
+      size="medium"
+      (activityDetected)="onActivityDetected($event)"
+      (idleStart)="onIdleStart()"
+      (idleEnd)="onIdleEnd()"
+      (warningStart)="onWarningStart()"
+      (warningEnd)="onWarningEnd()"
+      (sessionExtended)="onSessionExtended()"
+      (sessionTimeout)="onSessionTimeout()">
+    </idle-warning-dialog>
   `,
   styles: [`
     .container {
@@ -120,71 +99,62 @@ import { takeUntil, throttleTime } from 'rxjs/operators';
     h1 {
       color: #1e293b;
       margin-bottom: 5px;
+      font-size: 2.5rem;
+      text-align: center;
     }
     
     .subtitle {
       color: #64748b;
-      margin-bottom: 30px;
-      font-size: 16px;
+      margin-bottom: 40px;
+      font-size: 18px;
+      text-align: center;
     }
     
-    .status-card {
-      background: #f8fafc;
-      border: 2px solid #e2e8f0;
+    .feature-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 20px;
+      margin: 40px 0;
+    }
+    
+    .feature-item {
+      background: white;
+      border: 1px solid #e2e8f0;
       border-radius: 12px;
       padding: 20px;
-      margin: 20px 0;
+      text-align: center;
       transition: all 0.3s;
     }
     
-    .status-active { border-color: #10b981; background: #ecfdf5; }
-    .status-idle { border-color: #f59e0b; background: #fffbeb; }
-    .status-warning { border-color: #ef4444; background: #fef2f2; }
-    
-    .status-text {
-      font-size: 18px;
-      font-weight: 600;
-      color: #1e293b;
+    .feature-item:hover {
+      border-color: #3b82f6;
+      transform: translateY(-2px);
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
     }
     
-    .status-detail {
+    .feature-icon {
+      font-size: 2rem;
+      margin-bottom: 10px;
+    }
+    
+    .feature-title {
+      font-size: 16px;
+      font-weight: 600;
+      color: #1e293b;
+      margin-bottom: 8px;
+    }
+    
+    .feature-description {
       font-size: 14px;
       color: #64748b;
-      margin-top: 5px;
+      line-height: 1.4;
     }
     
-    .info-grid {
-      display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-      gap: 15px;
-      margin: 30px 0;
-    }
-    
-    .info-item {
-      background: white;
-      border: 1px solid #e2e8f0;
-      border-radius: 8px;
-      padding: 15px;
-    }
-    
-    .info-label {
-      font-size: 12px;
-      color: #64748b;
-      text-transform: uppercase;
-      letter-spacing: 0.5px;
-      margin-bottom: 5px;
-    }
-    
-    .info-value {
-      font-size: 18px;
-      font-weight: 600;
-      color: #1e293b;
-    }
-    
-    .controls {
+    .demo-controls {
       display: flex;
       gap: 15px;
       margin: 30px 0;
+      justify-content: center;
       flex-wrap: wrap;
     }
     
@@ -236,11 +206,16 @@ import { takeUntil, throttleTime } from 'rxjs/operators';
       color: #047857;
       margin: 0;
       font-size: 14px;
-      line-height: 1.5;
+      line-height: 1.6;
     }
     
     .event-log {
       margin: 30px 0;
+    }
+    
+    .event-log h3 {
+      margin-bottom: 15px;
+      color: #1e293b;
     }
     
     .log-content {
@@ -401,199 +376,62 @@ import { takeUntil, throttleTime } from 'rxjs/operators';
     }
   `]
 })
-export class AppComponent implements OnInit, OnDestroy {
-  private destroy$ = new Subject<void>();
-  private idleTimer?: any;
-  private warningTimer?: any;
-  private countdownInterval?: any;
-  
-  isWatching = false;
-  isIdle = false;
-  isWarning = false;
-  idleCountdown = 10;
-  warningCountdown = 30;
+export class AppComponent {
   eventLog: Array<{ timestamp: string; message: string }> = [];
   
-  private readonly IDLE_TIME = 10000; // 10 seconds
-  private readonly WARNING_TIME = 30000; // 30 seconds
-  private readonly activityEvents = ['click', 'mousemove', 'keydown', 'scroll', 'touchstart'];
-  
-  ngOnInit() {
-    this.logEvent('🚀 Angular app initialized - Industry standard onBackdropClick implemented');
-    this.setupActivityListeners();
+  constructor() {
+    this.logEvent('Angular app initialized with complete idle detection solution');
+    this.logEvent('Idle timeout: 10 seconds, Warning timeout: 5 seconds');
   }
   
-  ngOnDestroy() {
-    this.destroy$.next();
-    this.destroy$.complete();
-    this.clearAllTimers();
+  // Idle detection event handlers
+  onActivityDetected(event: Event) {
+    this.logEvent(`Activity detected: ${event.type}`);
   }
   
-  private setupActivityListeners() {
-    const activityStreams = this.activityEvents.map(event => 
-      fromEvent(document, event).pipe(throttleTime(1000))
-    );
-    
-    merge(...activityStreams).pipe(
-      takeUntil(this.destroy$)
-    ).subscribe(() => {
-      if (this.isWatching && !this.isWarning) {
-        this.resetIdleTimer();
-      }
-    });
+  onIdleStart() {
+    this.logEvent('User became idle');
   }
   
-  toggleWatching() {
-    if (this.isWatching) {
-      this.stopWatching();
-    } else {
-      this.startWatching();
-    }
+  onIdleEnd() {
+    this.logEvent('User became active again');
   }
   
-  startWatching() {
-    this.isWatching = true;
-    this.isIdle = false;
-    this.isWarning = false;
-    this.logEvent('🟢 Started watching for idle activity');
-    this.resetIdleTimer();
+  onWarningStart() {
+    this.logEvent('Warning dialog shown');
   }
   
-  stopWatching() {
-    this.isWatching = false;
-    this.isIdle = false;
-    this.isWarning = false;
-    this.clearAllTimers();
-    this.logEvent('🛑 Stopped watching for idle activity');
+  onWarningEnd() {
+    this.logEvent('Warning dialog closed');
   }
   
-  private resetIdleTimer() {
-    this.clearAllTimers();
-    this.idleCountdown = 10;
-    
-    // Update countdown every second
-    this.countdownInterval = setInterval(() => {
-      this.idleCountdown--;
-      if (this.idleCountdown <= 0) {
-        clearInterval(this.countdownInterval);
-      }
-    }, 1000);
-    
-    // Start idle timer
-    this.idleTimer = setTimeout(() => {
-      this.triggerIdle();
-    }, this.IDLE_TIME);
+  onSessionExtended() {
+    this.logEvent('Session extended by user');
   }
   
-  private triggerIdle() {
-    this.isIdle = true;
-    this.isWarning = true;
-    this.logEvent('⚠️ User is idle - Showing warning dialog');
-    this.startWarningCountdown();
+  onSessionTimeout() {
+    this.logEvent('Session timed out automatically');
   }
   
-  private startWarningCountdown() {
-    this.warningCountdown = 30;
-    
-    this.countdownInterval = setInterval(() => {
-      this.warningCountdown--;
-      if (this.warningCountdown <= 0) {
-        this.autoLogout();
-      }
-    }, 1000);
-    
-    this.warningTimer = setTimeout(() => {
-      this.autoLogout();
-    }, this.WARNING_TIME);
-  }
+  // Callback functions for the idle warning dialog
+  handleExtend = () => {
+    this.logEvent('Session extended via "Yes, Continue" button');
+  };
   
-  showWarningDialog() {
-    this.isWarning = true;
-    this.logEvent('👆 Warning dialog shown manually');
-    this.startWarningCountdown();
-  }
-  
-  onBackdropClick(event: Event) {
-    // INDUSTRY STANDARD: Always prevent backdrop clicks from closing session dialogs
-    event.preventDefault();
-    event.stopPropagation();
-    this.logEvent('🔒 Backdrop clicked - IGNORED (Industry Standard: Session dialogs require explicit button clicks)');
-  }
-  
-  extendSession() {
-    this.logEvent('✅ Session extended via "Yes, Continue" button');
-    this.isWarning = false;
-    this.isIdle = false;
-    this.clearAllTimers();
-    
-    if (this.isWatching) {
-      this.resetIdleTimer();
-    }
-  }
-  
-  logout() {
-    this.logEvent('🚪 Logout via "No, Logout" button');
-    this.isWarning = false;
-    this.stopWatching();
+  handleLogout = () => {
+    this.logEvent('User logged out via "No, Logout" button');
     alert('Session ended by user choice. Refresh the page to start a new session.');
-  }
-  
-  private autoLogout() {
-    this.logEvent('⏰ Automatic logout - Warning timer expired');
-    this.isWarning = false;
-    this.stopWatching();
-    alert('Session timed out due to inactivity. Refresh the page to start a new session.');
-  }
-  
-  simulateActivity() {
-    this.logEvent('👆 Activity simulated via button click');
-    if (this.isWatching && !this.isWarning) {
-      this.resetIdleTimer();
-    }
-  }
-  
-  private clearAllTimers() {
-    if (this.idleTimer) clearTimeout(this.idleTimer);
-    if (this.warningTimer) clearTimeout(this.warningTimer);
-    if (this.countdownInterval) clearInterval(this.countdownInterval);
-  }
-  
-  getStatusClass(): string {
-    if (this.isWarning) return 'status-warning';
-    if (this.isIdle) return 'status-idle';
-    return 'status-active';
-  }
-  
-  getStatusText(): string {
-    if (this.isWarning) return 'Session Timeout Warning';
-    if (this.isIdle) return 'User is Idle';
-    if (this.isWatching) return 'Monitoring Activity';
-    return 'Ready to Start';
-  }
-  
-  getStatusDetail(): string {
-    if (this.isWarning) return 'Click "Yes, Continue" or "No, Logout" to dismiss';
-    if (this.isIdle) return 'User has been inactive';
-    if (this.isWatching) return 'Watching for user inactivity';
-    return 'Click "Start Watching" to begin idle detection';
-  }
-  
-  formatTime(milliseconds: number): string {
-    const totalSeconds = Math.ceil(milliseconds / 1000);
-    const minutes = Math.floor(totalSeconds / 60);
-    const seconds = totalSeconds % 60;
-    return `${minutes}:${seconds.toString().padStart(2, '0')}`;
-  }
+  };
   
   clearLog() {
     this.eventLog = [];
-    this.logEvent('🧹 Event log cleared');
+    this.logEvent('Event log cleared');
   }
   
-  private logEvent(message: string) {
+  logEvent(message: string) {
     const timestamp = new Date().toLocaleTimeString();
     this.eventLog.unshift({ timestamp, message });
-    if (this.eventLog.length > 15) {
+    if (this.eventLog.length > 20) {
       this.eventLog.pop();
     }
   }

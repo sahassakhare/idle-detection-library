@@ -1,16 +1,16 @@
 # Angular Idle Detection Sample
 
-This sample demonstrates how to use the `@idle-detection/angular-oauth-integration` library in an Angular application.
+This sample demonstrates the complete idle detection solution using the `@idle-detection/angular-oauth-integration` library.
 
 ## Features
 
-- Real-time idle detection with configurable timeouts
-- Warning dialog with countdown timer
-- Session extension capabilities
-- Event logging for debugging
-- Test scenarios for various use cases
+- **Zero Setup**: Just add one component tag - no manual idle detection code required
+- **Complete Solution**: Automatic idle detection, warning dialog, and session management
+- **Industry Standard Security**: Backdrop clicks disabled to prevent accidental logouts
+- **Customizable**: Configurable timeouts, themes, messages, and styling
+- **Event Monitoring**: Real-time activity logging for debugging and monitoring
 
-## Setup
+## Quick Start
 
 1. Install dependencies:
 ```bash
@@ -29,40 +29,89 @@ npm start
 
 4. Open http://localhost:4200 in your browser
 
+## Implementation
+
+This sample shows the simplest possible implementation - just add the component:
+
+```typescript
+import { IdleWarningDialogComponent } from '@idle-detection/angular-oauth-integration';
+
+@Component({
+  imports: [IdleWarningDialogComponent],
+  template: `
+    <!-- Your app content -->
+    
+    <!-- Complete idle detection solution -->
+    <idle-warning-dialog
+      [idleTimeout]="30000"
+      [warningTimeout]="15000"
+      [onLogoutCallback]="handleLogout">
+    </idle-warning-dialog>
+  `
+})
+```
+
+**That's it!** The component automatically handles:
+- Activity detection across your entire app
+- Idle state management
+- Warning dialog display and countdown
+- Session extension and timeout
+
 ## Testing the Idle Detection
 
-1. **Normal Flow**: Wait for 60 seconds without any activity to trigger idle state
-2. **Warning Dialog**: After going idle, a warning dialog appears for 30 seconds
-3. **Extend Session**: Click "Yes, Continue" to extend the session
-4. **Auto Logout**: Let the warning timer expire to trigger automatic logout
+1. **Activity Detection**: Move your mouse, type, or click - see activity logged in real-time
+2. **Idle Trigger**: Wait 30 seconds without activity to trigger the warning dialog
+3. **Warning Dialog**: Dialog appears with 15-second countdown
+4. **Extend Session**: Click "Yes, Continue" to extend session and reset idle timer
+5. **Auto Logout**: Let countdown reach zero to trigger automatic logout
 
-## Configuration
+## Configuration Options
 
-The idle detection is configured in `app.config.ts`:
+The component supports extensive configuration:
 
-- `idle`: 60000ms (1 minute) - Time before user is considered idle
-- `timeout`: 30000ms (30 seconds) - Warning dialog duration
-- `keepAliveInterval`: 15000ms (15 seconds) - Interval for keep-alive pings
-- `events`: Mouse, keyboard, touch, and scroll events trigger activity
+```typescript
+<idle-warning-dialog
+  [idleTimeout]="900000"           // 15 minutes until idle
+  [warningTimeout]="60000"         // 1 minute warning
+  [activityEvents]="['click', 'mousemove']"  // Events to monitor
+  [enableIdleDetection]="true"     // Enable/disable detection
+  [onExtendCallback]="handleExtend"
+  [onLogoutCallback]="handleLogout"
+  dialogTitle="Session Timeout"
+  dialogMessage="Your session will expire soon"
+  extendButtonText="Keep me signed in"
+  logoutButtonText="Sign out"
+  theme="default"                  // default, dark, minimal
+  size="medium">                   // small, medium, large
+</idle-warning-dialog>
+```
 
-## Important Notes
+## Industry Standard Security
 
-### Industry Standard onBackdropClick Behavior
+This implementation follows industry standards for session timeout dialogs:
 
-The `onBackdropClick` handler in the idle warning dialog component (line 477 in `idle-warning-dialog.component.ts`) now follows industry standards:
+- **No backdrop dismissal**: Clicking outside the dialog does NOT close it
+- **Explicit user action required**: Users must click action buttons
+- **Clear messaging**: Countdown timer and clear instructions
+- **Secure by default**: No accidental logouts from mis-clicks
 
-- **Backdrop clicks are completely disabled** - clicking outside the dialog will NOT close it
-- This matches the behavior of banking applications, Google Workspace, Microsoft 365, and AWS Console
-- Users must explicitly click "Yes, Continue" or "No, Logout" to dismiss the dialog
-- The `backdropClose` property has been removed as it's not appropriate for session timeout dialogs
-- This prevents accidental logouts from mis-clicks outside the modal
+This matches the behavior of:
+- Banking applications
+- Google Workspace
+- Microsoft 365
+- AWS Console
+- Enterprise security systems
 
-## Customization
+## Events and Callbacks
 
-The warning dialog supports extensive customization:
+The component emits events for integration with your app:
 
-- **Theme**: 'default', 'dark', or 'minimal'
-- **Size**: 'small', 'medium', or 'large'
-- **Content**: Custom title, message, and button text
-- **Features**: Toggle countdown timer and progress bar
-- **Styling**: Custom CSS classes and inline styles
+```typescript
+<idle-warning-dialog
+  (activityDetected)="onActivity($event)"
+  (idleStart)="onIdleStart()"
+  (warningStart)="onWarningStart()"
+  (sessionExtended)="onSessionExtended()"
+  (sessionTimeout)="onSessionTimeout()">
+</idle-warning-dialog>
+```
