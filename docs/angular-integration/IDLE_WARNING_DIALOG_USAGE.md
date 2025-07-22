@@ -50,7 +50,7 @@ import { IdleWarningDialogComponent } from '@idle-detection/angular-oauth-integr
       <router-outlet></router-outlet>
     </div>
     
-    <!-- Complete idle detection solution -->
+    <!-- Complete idle detection solution - NO *ngIf needed! -->
     <idle-warning-dialog
       [idleTimeout]="900000"
       [warningTimeout]="60000"
@@ -67,6 +67,8 @@ export class AppComponent {
   };
 }
 ```
+
+**Important**: Do NOT use `*ngIf` on the `<idle-warning-dialog>` tag. The component handles showing/hiding the dialog automatically.
 
 **That's it!** The component automatically:
 - ✅ Detects user activity across your entire app
@@ -102,22 +104,14 @@ export class AppComponent {
 | `sessionTimeout` | Session timed out |
 | `activityDetected` | User activity detected |
 
-## Manual Implementation
+## Legacy/Manual Implementation (Backward Compatibility)
 
-If you need more control, you can implement idle detection manually:
+If you have existing code or need to control when the dialog shows manually, you can disable automatic idle detection:
 
-### Step 1: Import the Dialog Component
-
-```typescript
-import { IdleWarningDialogComponent } from '@idle-detection/angular-oauth-integration';
-```
-
-### Step 2: Simple Usage
-
-For basic usage, just import and use the dialog component with minimal setup:
+### Using with Manual Control
 
 ```typescript
-import { Component } from '@angular/core';
+import { Component, ViewChild } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { IdleWarningDialogComponent } from '@idle-detection/angular-oauth-integration';
 
@@ -130,9 +124,9 @@ import { IdleWarningDialogComponent } from '@idle-detection/angular-oauth-integr
       <h1>My Application</h1>
       <button (click)="showDialog()">Show Warning Dialog</button>
       
-      <!-- Simple idle warning dialog -->
+      <!-- Dialog with automatic idle detection disabled -->
       <idle-warning-dialog 
-        *ngIf="showWarning"
+        [enableIdleDetection]="false"
         [initialTimeRemaining]="30000"
         [onExtendCallback]="handleExtend"
         [onLogoutCallback]="handleLogout">
@@ -141,23 +135,26 @@ import { IdleWarningDialogComponent } from '@idle-detection/angular-oauth-integr
   `
 })
 export class AppComponent {
-  showWarning = false;
+  @ViewChild(IdleWarningDialogComponent) dialog!: IdleWarningDialogComponent;
   
   showDialog() {
-    this.showWarning = true;
+    // Manually trigger the warning
+    this.dialog.isWarningShown = true;
   }
   
   handleExtend = () => {
     console.log('Session extended');
-    this.showWarning = false;
+    // Dialog will hide itself automatically
   };
   
   handleLogout = () => {
     console.log('User logged out');
-    this.showWarning = false;
+    // Dialog will hide itself automatically
   };
 }
 ```
+
+**Note**: When `enableIdleDetection="false"`, you control when the dialog appears by setting the `isWarningShown` property.
 
 ## Complete Manual Implementation Example
 

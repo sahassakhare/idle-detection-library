@@ -394,7 +394,7 @@ export class IdleWarningDialogComponent implements OnInit, OnDestroy {
   private throttleTimer?: any;
   private boundHandleActivity?: any;
   private isIdle = false;
-  private isWarningShown = false;
+  isWarningShown = false; // Public for template access
   
   timeRemaining = signal(0);
   cssClasses = signal<any>(null);
