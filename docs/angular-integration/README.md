@@ -25,7 +25,7 @@ The Angular Idle Detection library extends the core idle detection functionality
 
 - **Angular Native**: Built specifically for Angular 15+ with standalone components
 - **OAuth Integration**: Automatic token refresh and session management
-- **NgRx State Management**: Reactive state management with full NgRx support
+- **NgRx State Management**: Optional reactive state management with NgRx support
 - **Customizable UI**: Flexible warning dialog component with theming
 - **Type Safety**: Full TypeScript support with comprehensive type definitions
 - **Multi-Tab Coordination**: Share idle state across browser tabs
@@ -58,11 +58,17 @@ npm install @idle-detection/angular-oauth-integration
 yarn add @idle-detection/angular-oauth-integration
 ```
 
-### Peer Dependencies
+### Peer Dependencies (Optional)
 
 ```bash
-npm install @ngrx/store @ngrx/effects angular-auth-oidc-client
+# For NgRx-based implementation
+npm install @ngrx/store @ngrx/effects
+
+# For OAuth support
+npm install angular-auth-oidc-client
 ```
+
+**Note**: The idle-warning-dialog component can now be used standalone without NgRx dependencies.
 
 ## Quick Start
 
@@ -281,7 +287,10 @@ A customizable dialog component for displaying session warnings.
 
 | Property | Type | Default | Description |
 |----------|------|---------|-------------|
-| `warningData` | `IdleWarningData` | Required | Warning data from service |
+| `warningData` | `IdleWarningData` | Optional | Warning data from service |
+| `initialTimeRemaining` | `number` | 30000 | Initial countdown time (ms) |
+| `onExtendCallback` | `() => void` | Optional | Custom extend callback |
+| `onLogoutCallback` | `() => void` | Optional | Custom logout callback |
 | `titleText` | `string` | 'Session Warning' | Dialog title |
 | `messageText` | `string` | 'Your session...' | Warning message |
 | `extendText` | `string` | 'Extend Session' | Extend button text |
@@ -290,8 +299,9 @@ A customizable dialog component for displaying session warnings.
 | `size` | `'small' \| 'medium' \| 'large'` | 'medium' | Dialog size |
 | `showProgressBar` | `boolean` | `true` | Show countdown progress |
 | `showCountdown` | `boolean` | `true` | Show time remaining |
-| `backdropClose` | `boolean` | `false` | Close on backdrop click |
 | `customStyles` | `object` | `{}` | Custom CSS styles |
+
+**Note**: Backdrop clicks are disabled by industry standard - users must explicitly click action buttons.
 
 #### Events
 
@@ -320,6 +330,21 @@ A customizable dialog component for displaying session warnings.
   }"
   (extendSession)="extendSession()"
   (logout)="logout()">
+</idle-warning-dialog>
+```
+
+### Standalone Usage Example (Without NgRx)
+
+```typescript
+<idle-warning-dialog 
+  *ngIf="showWarning"
+  [initialTimeRemaining]="30000"
+  [onExtendCallback]="handleExtend"
+  [onLogoutCallback]="handleLogout"
+  titleText="Session Timeout"
+  messageText="Your session is about to expire."
+  (extendSession)="onExtendSession()"
+  (logout)="onLogout()">
 </idle-warning-dialog>
 ```
 

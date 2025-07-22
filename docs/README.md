@@ -13,10 +13,12 @@ Framework-agnostic JavaScript library for idle detection.
 - **[Core API Reference](./core/API.md)** - Detailed API documentation
 
 ### [Angular Integration Documentation](./angular-integration/)
-Angular-specific integration with OAuth support and NgRx state management.
+Angular-specific integration with OAuth support and optional NgRx state management.
 
 - **[Angular README](./angular-integration/README.md)** - Complete Angular integration guide
 - **[Angular API Reference](./angular-integration/API.md)** - Detailed Angular API documentation
+
+**Note**: The Angular integration now supports both NgRx-based and standalone implementations. The idle-warning-dialog component can be used without NgRx dependencies.
 
 ## Quick Navigation
 
@@ -28,7 +30,8 @@ Angular-specific integration with OAuth support and NgRx state management.
 - **Framework Agnostic**: Works with any JavaScript framework
 - **Angular Native**: Full Angular integration with standalone components
 - **OAuth Integration**: Automatic token refresh and session management
-- **NgRx Support**: Reactive state management
+- **NgRx Support**: Optional reactive state management
+- **Standalone Components**: Use without NgRx dependencies
 - **Multi-Tab Coordination**: Synchronized state across browser tabs
 - **Customizable UI**: Themeable warning dialogs
 - **TypeScript**: Full type safety and IntelliSense support
