@@ -20,81 +20,77 @@ npm install @idle-detection/angular-oauth-integration
 
 **Note**: NgRx is NOT required for using the idle warning dialog component.
 
-## Quick Start - Simple Approach
+## Quick Start - Complete Solution
 
-The easiest way to add idle detection is using the `IdleDetectionWrapperComponent` which handles all the idle detection logic for you:
+The idle warning dialog component is now a **complete solution** - just add one tag and it automatically handles all idle detection:
 
-### Step 1: Import the Wrapper Component
+### Step 1: Import the Component
 
 ```typescript
-import { IdleDetectionWrapperComponent } from '@idle-detection/angular-oauth-integration';
+import { IdleWarningDialogComponent } from '@idle-detection/angular-oauth-integration';
 ```
 
-### Step 2: Wrap Your App Content
+### Step 2: Add the Tag - That's It!
 
 ```typescript
 import { Component } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { Router } from '@angular/router';
-import { IdleDetectionWrapperComponent } from '@idle-detection/angular-oauth-integration';
+import { IdleWarningDialogComponent } from '@idle-detection/angular-oauth-integration';
 
 @Component({
   selector: 'app-root',
   standalone: true,
-  imports: [CommonModule, IdleDetectionWrapperComponent],
+  imports: [CommonModule, IdleWarningDialogComponent],
   template: `
-    <idle-detection-wrapper
-      [idleTimeout]="600000"
+    <!-- Your app content -->
+    <div class="app-container">
+      <h1>My Application</h1>
+      <p>User activity is automatically monitored</p>
+      <router-outlet></router-outlet>
+    </div>
+    
+    <!-- Complete idle detection solution -->
+    <idle-warning-dialog
+      [idleTimeout]="900000"
       [warningTimeout]="60000"
-      (sessionTimeout)="handleSessionTimeout()"
-      (sessionExtended)="handleSessionExtended()">
-      
-      <!-- Your entire app content goes here -->
-      <div class="app-container">
-        <h1>My Application</h1>
-        <p>All your app content is automatically monitored for activity</p>
-        <router-outlet></router-outlet>
-      </div>
-      
-    </idle-detection-wrapper>
+      [onLogoutCallback]="handleLogout">
+    </idle-warning-dialog>
   `
 })
 export class AppComponent {
   constructor(private router: Router) {}
   
-  handleSessionTimeout() {
+  handleLogout = () => {
     console.log('Session timed out');
-    // Navigate to login or perform logout
     this.router.navigate(['/login']);
-  }
-  
-  handleSessionExtended() {
-    console.log('User extended their session');
-    // Optional: Log analytics or perform other actions
-  }
+  };
 }
 ```
 
-That's it! The wrapper component handles:
-- ✅ Activity detection (mouse, keyboard, touch events)
-- ✅ Idle timer management
-- ✅ Warning dialog display
-- ✅ Countdown timer
-- ✅ Session extension/logout callbacks
+**That's it!** The component automatically:
+- ✅ Detects user activity across your entire app
+- ✅ Shows warning dialog when idle
+- ✅ Manages countdown timer
+- ✅ Handles session extension/timeout
+- ✅ Follows industry standards (no backdrop clicks)
 
-### Configuration Options for Wrapper
+### Configuration Options
 
 | Property | Type | Default | Description |
 |----------|------|---------|-------------|
-| `idleTimeout` | `number` | `900000` (15 min) | Time until idle warning shows |
+| `idleTimeout` | `number` | `900000` (15 min) | Time until user is considered idle |
 | `warningTimeout` | `number` | `60000` (1 min) | Warning duration before logout |
-| `activityEvents` | `string[]` | `['mousedown', 'mousemove', 'keypress', 'scroll', 'touchstart', 'click']` | Events to monitor |
-| `enableIdleDetection` | `boolean` | `true` | Enable/disable detection |
+| `activityEvents` | `string[]` | `['mousedown', 'mousemove', ...]` | Events to monitor for activity |
+| `enableIdleDetection` | `boolean` | `true` | Enable/disable idle detection |
+| `onExtendCallback` | `() => void` | - | Called when user extends session |
+| `onLogoutCallback` | `() => void` | - | Called when session times out |
 | `dialogTitle` | `string` | `'Session Timeout Warning'` | Dialog title |
 | `dialogMessage` | `string` | `'Your session is about to expire...'` | Warning message |
-| `theme` | `string` | `'default'` | Dialog theme |
+| `theme` | `'default' \| 'dark' \| 'minimal'` | `'default'` | Dialog theme |
+| `throttleDelay` | `number` | `500` | Activity event throttling (ms) |
 
-### Events from Wrapper
+### Events
 
 | Event | Description |
 |-------|-------------|
@@ -102,7 +98,7 @@ That's it! The wrapper component handles:
 | `idleEnd` | User became active again |
 | `warningStart` | Warning dialog shown |
 | `warningEnd` | Warning dialog closed |
-| `sessionExtended` | User clicked extend |
+| `sessionExtended` | User clicked extend session |
 | `sessionTimeout` | Session timed out |
 | `activityDetected` | User activity detected |
 
@@ -440,13 +436,12 @@ export class AppComponent implements OnInit, OnDestroy {
 
 ## Advanced Usage
 
-### Custom Styling
+### Custom Styling with Complete Solution
 
 ```typescript
-<idle-warning-dialog 
-  *ngIf="showWarning"
-  [initialTimeRemaining]="120000"
-  [onExtendCallback]="handleExtend"
+<idle-warning-dialog
+  [idleTimeout]="1200000"
+  [warningTimeout]="120000"
   [onLogoutCallback]="handleLogout"
   dialogTitle="Security Alert"
   dialogMessage="For your security, you'll be logged out soon."

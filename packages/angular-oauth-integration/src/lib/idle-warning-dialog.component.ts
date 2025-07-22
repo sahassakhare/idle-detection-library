@@ -21,6 +21,7 @@ import { IdleWarningData } from './types';
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <div 
+      *ngIf="isWarningShown"
       [class]="backdropClass"
       [ngClass]="[themeClass(), 'idle-warning-overlay']"
       role="dialog"
@@ -337,6 +338,13 @@ export class IdleWarningDialogComponent implements OnInit, OnDestroy {
   // Simple inputs to replace store dependencies
   @Input() initialTimeRemaining?: number = 30000; // 30 seconds default
   
+  // Idle detection configuration - makes this a complete solution
+  @Input() idleTimeout?: number = 900000; // 15 minutes default
+  @Input() warningTimeout?: number = 60000; // 1 minute warning default
+  @Input() activityEvents?: string[] = ['mousedown', 'mousemove', 'keypress', 'scroll', 'touchstart', 'click'];
+  @Input() enableIdleDetection?: boolean = true;
+  @Input() throttleDelay?: number = 500; // Throttle activity events
+  
   // Callback functions provided by user
   @Input() onExtendCallback?: () => void;
   @Input() onLogoutCallback?: () => void;
@@ -367,9 +375,26 @@ export class IdleWarningDialogComponent implements OnInit, OnDestroy {
 
   @Output() extendSession = new EventEmitter<void>();
   @Output() logout = new EventEmitter<void>();
+  
+  // Additional outputs for idle detection events
+  @Output() idleStart = new EventEmitter<void>();
+  @Output() idleEnd = new EventEmitter<void>();
+  @Output() warningStart = new EventEmitter<void>();
+  @Output() warningEnd = new EventEmitter<void>();
+  @Output() sessionTimeout = new EventEmitter<void>();
+  @Output() activityDetected = new EventEmitter<Event>();
 
   private destroy$ = new Subject<void>();
   private countdownTimer?: any;
+  
+  // Idle detection state
+  private idleTimer?: any;
+  private warningTimer?: any;
+  private lastActivity: number = Date.now();
+  private throttleTimer?: any;
+  private boundHandleActivity?: any;
+  private isIdle = false;
+  private isWarningShown = false;
   
   timeRemaining = signal(0);
   cssClasses = signal<any>(null);
@@ -413,21 +438,16 @@ export class IdleWarningDialogComponent implements OnInit, OnDestroy {
       this.totalTime.set(this.warningData.timeRemaining || this.initialTimeRemaining || 30000);
     } else {
       // Set default values when no warningData is provided
-      this.totalTime.set(this.initialTimeRemaining || 30000);
+      this.totalTime.set(this.warningTimeout || this.initialTimeRemaining || 30000);
     }
     
-    // Initialize time remaining and start countdown
-    const initialTime = this.totalTime();
-    this.timeRemaining.set(initialTime);
-    this.startCountdown();
-
-    // Focus first button for accessibility
-    setTimeout(() => {
-      const firstButton = document.querySelector('.btn-primary') as HTMLButtonElement;
-      if (firstButton) {
-        firstButton.focus();
-      }
-    }, 100);
+    // Setup idle detection if enabled
+    if (this.enableIdleDetection) {
+      this.setupIdleDetection();
+    } else if (this.warningData) {
+      // Backward compatibility - show immediately if warningData provided
+      this.showWarning();
+    }
   }
 
   private startCountdown(): void {
@@ -446,17 +466,139 @@ export class IdleWarningDialogComponent implements OnInit, OnDestroy {
   ngOnDestroy(): void {
     this.destroy$.next();
     this.destroy$.complete();
+    this.cleanup();
+  }
+
+  private setupIdleDetection(): void {
+    // Create bound event handler
+    this.boundHandleActivity = this.handleUserActivity.bind(this);
+    
+    // Add event listeners
+    this.activityEvents?.forEach(event => {
+      document.addEventListener(event, this.boundHandleActivity, { passive: true });
+    });
+    
+    // Start idle timer
+    this.resetIdleTimer();
+  }
+
+  private handleUserActivity = (event: Event) => {
+    // Throttle activity events
+    if (this.throttleTimer) return;
+    
+    this.throttleTimer = setTimeout(() => {
+      this.throttleTimer = null;
+    }, this.throttleDelay);
+    
+    // Don't reset if warning is already showing
+    if (!this.isWarningShown && this.enableIdleDetection) {
+      this.lastActivity = Date.now();
+      this.activityDetected.emit(event);
+      
+      if (this.isIdle) {
+        this.isIdle = false;
+        this.idleEnd.emit();
+      }
+      
+      this.resetIdleTimer();
+    }
+  };
+
+  private resetIdleTimer(): void {
+    // Clear existing timers
+    this.clearIdleTimers();
+    
+    // Start new idle timer
+    this.idleTimer = setTimeout(() => {
+      this.triggerIdle();
+    }, this.idleTimeout);
+  }
+
+  private triggerIdle(): void {
+    this.isIdle = true;
+    this.idleStart.emit();
+    this.showWarning();
+  }
+
+  private showWarning(): void {
+    this.isWarningShown = true;
+    this.warningStart.emit();
+    
+    // Initialize time remaining and start countdown
+    const warningTime = this.warningTimeout || this.initialTimeRemaining || 30000;
+    this.timeRemaining.set(warningTime);
+    this.totalTime.set(warningTime);
+    this.startCountdown();
+    
+    // Start warning timeout timer
+    this.warningTimer = setTimeout(() => {
+      this.handleTimeout();
+    }, warningTime);
+
+    // Focus first button for accessibility
+    setTimeout(() => {
+      const firstButton = document.querySelector('.btn-primary') as HTMLButtonElement;
+      if (firstButton) {
+        firstButton.focus();
+      }
+    }, 100);
+  }
+
+  private handleTimeout(): void {
+    this.isWarningShown = false;
+    this.sessionTimeout.emit();
+    this.cleanup();
+    
+    // Call logout callback
+    if (this.onLogoutCallback) {
+      this.onLogoutCallback();
+    }
+  }
+
+  private clearIdleTimers(): void {
+    if (this.idleTimer) {
+      clearTimeout(this.idleTimer);
+      this.idleTimer = null;
+    }
+    if (this.warningTimer) {
+      clearTimeout(this.warningTimer);
+      this.warningTimer = null;
+    }
     if (this.countdownTimer) {
       clearInterval(this.countdownTimer);
+      this.countdownTimer = null;
+    }
+    if (this.throttleTimer) {
+      clearTimeout(this.throttleTimer);
+      this.throttleTimer = null;
+    }
+  }
+
+  private cleanup(): void {
+    this.clearIdleTimers();
+    
+    // Remove event listeners
+    if (this.boundHandleActivity && this.activityEvents) {
+      this.activityEvents.forEach(event => {
+        document.removeEventListener(event, this.boundHandleActivity);
+      });
     }
   }
 
   onExtendSession(): void {
     console.log('Extend session clicked');
     
-    // Reset timer if needed
-    if (this.countdownTimer) {
-      clearInterval(this.countdownTimer);
+    // Hide warning and reset idle detection
+    this.isWarningShown = false;
+    this.isIdle = false;
+    this.warningEnd.emit();
+    
+    // Clear all timers
+    this.clearIdleTimers();
+    
+    // Restart idle detection if enabled
+    if (this.enableIdleDetection) {
+      this.resetIdleTimer();
     }
     
     // Priority 1: User-provided callback
@@ -477,10 +619,9 @@ export class IdleWarningDialogComponent implements OnInit, OnDestroy {
   onLogout(): void {
     console.log('Logout clicked');
     
-    // Clear timer
-    if (this.countdownTimer) {
-      clearInterval(this.countdownTimer);
-    }
+    // Hide warning and cleanup
+    this.isWarningShown = false;
+    this.cleanup();
     
     // Priority 1: User-provided callback
     if (this.onLogoutCallback) {
@@ -520,6 +661,38 @@ export class IdleWarningDialogComponent implements OnInit, OnDestroy {
     const minutes = Math.floor(totalSeconds / 60);
     const seconds = totalSeconds % 60;
     return `${minutes}:${seconds.toString().padStart(2, '0')}`;
+  }
+
+  // Public methods for programmatic control
+  pause(): void {
+    this.enableIdleDetection = false;
+    this.clearIdleTimers();
+  }
+
+  resume(): void {
+    this.enableIdleDetection = true;
+    if (!this.isWarningShown) {
+      this.resetIdleTimer();
+    }
+  }
+
+  reset(): void {
+    this.isWarningShown = false;
+    this.isIdle = false;
+    this.clearIdleTimers();
+    if (this.enableIdleDetection) {
+      this.resetIdleTimer();
+    }
+  }
+
+  getLastActivity(): Date {
+    return new Date(this.lastActivity);
+  }
+
+  getTimeUntilIdle(): number {
+    if (!this.idleTimer || this.isIdle) return 0;
+    const elapsed = Date.now() - this.lastActivity;
+    return Math.max(0, (this.idleTimeout || 0) - elapsed);
   }
 
   getButtonClass(type: 'primary' | 'secondary'): string {
