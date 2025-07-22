@@ -21,7 +21,7 @@ import { IdleWarningData } from './types';
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <div 
-      *ngIf="isWarningShown"
+      *ngIf="isWarningShown()"
       [class]="backdropClass"
       [ngClass]="[themeClass(), 'idle-warning-overlay']"
       role="dialog"
@@ -394,7 +394,7 @@ export class IdleWarningDialogComponent implements OnInit, OnDestroy {
   private throttleTimer?: any;
   private boundHandleActivity?: any;
   private isIdle = false;
-  isWarningShown = false; // Public for template access
+  isWarningShown = signal(false); // Public for template access
   
   timeRemaining = signal(0);
   cssClasses = signal<any>(null);
@@ -491,7 +491,7 @@ export class IdleWarningDialogComponent implements OnInit, OnDestroy {
     }, this.throttleDelay);
     
     // Don't reset if warning is already showing
-    if (!this.isWarningShown && this.enableIdleDetection) {
+    if (!this.isWarningShown() && this.enableIdleDetection) {
       this.lastActivity = Date.now();
       this.activityDetected.emit(event);
       
@@ -521,7 +521,7 @@ export class IdleWarningDialogComponent implements OnInit, OnDestroy {
   }
 
   private showWarning(): void {
-    this.isWarningShown = true;
+    this.isWarningShown.set(true);
     this.warningStart.emit();
     
     // Initialize time remaining and start countdown
@@ -545,7 +545,7 @@ export class IdleWarningDialogComponent implements OnInit, OnDestroy {
   }
 
   private handleTimeout(): void {
-    this.isWarningShown = false;
+    this.isWarningShown.set(false);
     this.sessionTimeout.emit();
     this.cleanup();
     
@@ -589,7 +589,7 @@ export class IdleWarningDialogComponent implements OnInit, OnDestroy {
     console.log('Extend session clicked');
     
     // Hide warning and reset idle detection
-    this.isWarningShown = false;
+    this.isWarningShown.set(false);
     this.isIdle = false;
     this.warningEnd.emit();
     
@@ -620,7 +620,7 @@ export class IdleWarningDialogComponent implements OnInit, OnDestroy {
     console.log('Logout clicked');
     
     // Hide warning and cleanup
-    this.isWarningShown = false;
+    this.isWarningShown.set(false);
     this.cleanup();
     
     // Priority 1: User-provided callback
@@ -671,13 +671,13 @@ export class IdleWarningDialogComponent implements OnInit, OnDestroy {
 
   resume(): void {
     this.enableIdleDetection = true;
-    if (!this.isWarningShown) {
+    if (!this.isWarningShown()) {
       this.resetIdleTimer();
     }
   }
 
   reset(): void {
-    this.isWarningShown = false;
+    this.isWarningShown.set(false);
     this.isIdle = false;
     this.clearIdleTimers();
     if (this.enableIdleDetection) {
