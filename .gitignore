@@ -35,6 +35,9 @@ build/
 *.swp
 *.swo
 
+# Claude AI
+.claude/
+
 # OS
 .DS_Store
 .DS_Store?
