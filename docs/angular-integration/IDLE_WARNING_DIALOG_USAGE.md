@@ -4,8 +4,8 @@ This guide provides step-by-step instructions for integrating the idle warning d
 
 ## Table of Contents
 - [Installation](#installation)
-- [Basic Setup](#basic-setup)
-- [Complete Example](#complete-example)
+- [Quick Start - Simple Approach](#quick-start---simple-approach)
+- [Manual Implementation](#manual-implementation)
 - [Configuration Options](#configuration-options)
 - [Advanced Usage](#advanced-usage)
 - [Troubleshooting](#troubleshooting)
@@ -20,71 +20,150 @@ npm install @idle-detection/angular-oauth-integration
 
 **Note**: NgRx is NOT required for using the idle warning dialog component.
 
-## Basic Setup
+## Quick Start - Simple Approach
 
-### Step 1: Import the Component
+The easiest way to add idle detection is using the `IdleDetectionWrapperComponent` which handles all the idle detection logic for you:
+
+### Step 1: Import the Wrapper Component
+
+```typescript
+import { IdleDetectionWrapperComponent } from '@idle-detection/angular-oauth-integration';
+```
+
+### Step 2: Wrap Your App Content
+
+```typescript
+import { Component } from '@angular/core';
+import { CommonModule } from '@angular/common';
+import { Router } from '@angular/router';
+import { IdleDetectionWrapperComponent } from '@idle-detection/angular-oauth-integration';
+
+@Component({
+  selector: 'app-root',
+  standalone: true,
+  imports: [CommonModule, IdleDetectionWrapperComponent],
+  template: `
+    <idle-detection-wrapper
+      [idleTimeout]="600000"
+      [warningTimeout]="60000"
+      (sessionTimeout)="handleSessionTimeout()"
+      (sessionExtended)="handleSessionExtended()">
+      
+      <!-- Your entire app content goes here -->
+      <div class="app-container">
+        <h1>My Application</h1>
+        <p>All your app content is automatically monitored for activity</p>
+        <router-outlet></router-outlet>
+      </div>
+      
+    </idle-detection-wrapper>
+  `
+})
+export class AppComponent {
+  constructor(private router: Router) {}
+  
+  handleSessionTimeout() {
+    console.log('Session timed out');
+    // Navigate to login or perform logout
+    this.router.navigate(['/login']);
+  }
+  
+  handleSessionExtended() {
+    console.log('User extended their session');
+    // Optional: Log analytics or perform other actions
+  }
+}
+```
+
+That's it! The wrapper component handles:
+- ✅ Activity detection (mouse, keyboard, touch events)
+- ✅ Idle timer management
+- ✅ Warning dialog display
+- ✅ Countdown timer
+- ✅ Session extension/logout callbacks
+
+### Configuration Options for Wrapper
+
+| Property | Type | Default | Description |
+|----------|------|---------|-------------|
+| `idleTimeout` | `number` | `900000` (15 min) | Time until idle warning shows |
+| `warningTimeout` | `number` | `60000` (1 min) | Warning duration before logout |
+| `activityEvents` | `string[]` | `['mousedown', 'mousemove', 'keypress', 'scroll', 'touchstart', 'click']` | Events to monitor |
+| `enableIdleDetection` | `boolean` | `true` | Enable/disable detection |
+| `dialogTitle` | `string` | `'Session Timeout Warning'` | Dialog title |
+| `dialogMessage` | `string` | `'Your session is about to expire...'` | Warning message |
+| `theme` | `string` | `'default'` | Dialog theme |
+
+### Events from Wrapper
+
+| Event | Description |
+|-------|-------------|
+| `idleStart` | User became idle |
+| `idleEnd` | User became active again |
+| `warningStart` | Warning dialog shown |
+| `warningEnd` | Warning dialog closed |
+| `sessionExtended` | User clicked extend |
+| `sessionTimeout` | Session timed out |
+| `activityDetected` | User activity detected |
+
+## Manual Implementation
+
+If you need more control, you can implement idle detection manually:
+
+### Step 1: Import the Dialog Component
 
 ```typescript
 import { IdleWarningDialogComponent } from '@idle-detection/angular-oauth-integration';
 ```
 
-### Step 2: Add to Component Imports
+### Step 2: Simple Usage
+
+For basic usage, just import and use the dialog component with minimal setup:
 
 ```typescript
+import { Component } from '@angular/core';
+import { CommonModule } from '@angular/common';
+import { IdleWarningDialogComponent } from '@idle-detection/angular-oauth-integration';
+
 @Component({
   selector: 'app-root',
   standalone: true,
-  imports: [CommonModule, IdleWarningDialogComponent], // Add here
-  template: `...`
+  imports: [CommonModule, IdleWarningDialogComponent],
+  template: `
+    <div class="app">
+      <h1>My Application</h1>
+      <button (click)="showDialog()">Show Warning Dialog</button>
+      
+      <!-- Simple idle warning dialog -->
+      <idle-warning-dialog 
+        *ngIf="showWarning"
+        [initialTimeRemaining]="30000"
+        [onExtendCallback]="handleExtend"
+        [onLogoutCallback]="handleLogout">
+      </idle-warning-dialog>
+    </div>
+  `
 })
-```
-
-### Step 3: Create Component Properties
-
-```typescript
 export class AppComponent {
   showWarning = false;
-  warningCountdown = 30; // seconds
   
-  // Callback functions
+  showDialog() {
+    this.showWarning = true;
+  }
+  
   handleExtend = () => {
     console.log('Session extended');
     this.showWarning = false;
-    // Your session extension logic here
   };
   
   handleLogout = () => {
     console.log('User logged out');
     this.showWarning = false;
-    // Your logout logic here
   };
 }
 ```
 
-### Step 4: Add Dialog to Template
-
-```typescript
-template: `
-  <div class="app">
-    <!-- Your app content -->
-    <h1>My Application</h1>
-    
-    <!-- Idle Warning Dialog -->
-    <idle-warning-dialog 
-      *ngIf="showWarning"
-      [initialTimeRemaining]="30000"
-      [onExtendCallback]="handleExtend"
-      [onLogoutCallback]="handleLogout"
-      dialogTitle="Session Timeout Warning"
-      dialogMessage="Your session is about to expire due to inactivity."
-      extendButtonText="Continue Working"
-      logoutButtonText="Logout">
-    </idle-warning-dialog>
-  </div>
-`
-```
-
-## Complete Example
+## Complete Manual Implementation Example
 
 Here's a fully functional Angular component with idle detection and warning dialog:
 
