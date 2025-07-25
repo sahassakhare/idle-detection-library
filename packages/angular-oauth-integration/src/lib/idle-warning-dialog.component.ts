@@ -13,6 +13,7 @@ import { CommonModule } from '@angular/common';
 import { Subject, timer } from 'rxjs';
 import { takeUntil } from 'rxjs/operators';
 import { IdleWarningData } from './types';
+import { Idle, MultiTabExpiry, IdleEvent } from '@idle-detection/core';
 
 @Component({
   selector: 'idle-warning-dialog',
@@ -344,6 +345,8 @@ export class IdleWarningDialogComponent implements OnInit, OnDestroy {
   @Input() activityEvents?: string[] = ['mousedown', 'mousemove', 'keypress', 'scroll', 'touchstart', 'click'];
   @Input() enableIdleDetection?: boolean = true;
   @Input() throttleDelay?: number = 500; // Throttle activity events
+  @Input() enableMultiTab?: boolean = true; // Enable multi-tab coordination
+  @Input() multiTabChannelName?: string = 'idle-detection-channel'; // BroadcastChannel name
   
   // Callback functions provided by user
   @Input() onExtendCallback?: () => void;
@@ -395,6 +398,10 @@ export class IdleWarningDialogComponent implements OnInit, OnDestroy {
   private boundHandleActivity?: any;
   private isIdle = false;
   isWarningShown = signal(false); // Public for template access
+  
+  // Multi-tab coordination using core Idle class
+  private idleCore?: Idle;
+  private multiTabExpiry?: MultiTabExpiry;
   
   timeRemaining = signal(0);
   cssClasses = signal<any>(null);
@@ -470,6 +477,11 @@ export class IdleWarningDialogComponent implements OnInit, OnDestroy {
   }
 
   private setupIdleDetection(): void {
+    // Setup multi-tab coordination
+    if (this.enableMultiTab) {
+      this.setupMultiTabCoordination();
+    }
+    
     // Create bound event handler
     this.boundHandleActivity = this.handleUserActivity.bind(this);
     
@@ -481,6 +493,56 @@ export class IdleWarningDialogComponent implements OnInit, OnDestroy {
     // Start idle timer
     this.resetIdleTimer();
   }
+  
+  private setupMultiTabCoordination(): void {
+    // Initialize core Idle class with built-in multi-tab support
+    this.idleCore = new Idle({
+      idleTimeout: this.idleTimeout || 900000,
+      warningTimeout: this.warningTimeout || 60000,
+      idleName: this.multiTabChannelName || 'idle-detection-channel'
+    });
+    
+    // Set up multi-tab expiry
+    this.multiTabExpiry = new MultiTabExpiry(this.multiTabChannelName || 'idle-detection-channel');
+    this.idleCore.setExpiry(this.multiTabExpiry);
+    
+    // Listen to core idle events for multi-tab sync (now broadcasted automatically)
+    this.idleCore.on(IdleEvent.IDLE_START, () => {
+      console.log('[Multi-Tab] Idle start event received');
+      if (!this.isWarningShown()) {
+        this.triggerIdle();
+      }
+    });
+    
+    this.idleCore.on(IdleEvent.WARNING_START, () => {
+      console.log('[Multi-Tab] Warning start event received');
+      if (!this.isWarningShown()) {
+        this.showWarning();
+      }
+    });
+    
+    this.idleCore.on(IdleEvent.TIMEOUT, () => {
+      console.log('[Multi-Tab] Timeout event received');
+      this.handleTimeout();
+    });
+    
+    this.idleCore.on(IdleEvent.IDLE_END, () => {
+      console.log('[Multi-Tab] Idle end event received - closing warning dialog');
+      if (this.isWarningShown()) {
+        this.isWarningShown.set(false);
+        this.isIdle = false;
+        this.warningEnd.emit();
+        this.clearIdleTimers();
+        if (this.enableIdleDetection) {
+          this.resetIdleTimer();
+        }
+      }
+    });
+    
+    // Start watching
+    this.idleCore.watch();
+  }
+  
 
   private handleUserActivity = (event: Event) => {
     // Throttle activity events
@@ -490,16 +552,29 @@ export class IdleWarningDialogComponent implements OnInit, OnDestroy {
       this.throttleTimer = null;
     }, this.throttleDelay);
     
-    // Don't reset if warning is already showing
-    if (!this.isWarningShown() && this.enableIdleDetection) {
+    // Always reset on user activity, even if warning is showing
+    if (this.enableIdleDetection) {
       this.lastActivity = Date.now();
       this.activityDetected.emit(event);
+      
+      // Reset core idle timer (handles multi-tab coordination automatically)
+      if (this.enableMultiTab && this.idleCore) {
+        console.log('[Multi-Tab] Resetting idle timer due to activity');
+        this.idleCore.reset();
+      }
+      
+      // Hide warning if showing
+      if (this.isWarningShown()) {
+        this.isWarningShown.set(false);
+        this.warningEnd.emit();
+      }
       
       if (this.isIdle) {
         this.isIdle = false;
         this.idleEnd.emit();
       }
       
+      this.clearIdleTimers();
       this.resetIdleTimer();
     }
   };
@@ -583,6 +658,15 @@ export class IdleWarningDialogComponent implements OnInit, OnDestroy {
         document.removeEventListener(event, this.boundHandleActivity);
       });
     }
+    
+    // Cleanup core idle instance
+    if (this.idleCore) {
+      this.idleCore.stop();
+      this.idleCore = undefined;
+    }
+    
+    
+    this.multiTabExpiry = undefined;
   }
 
   onExtendSession(): void {
@@ -592,6 +676,12 @@ export class IdleWarningDialogComponent implements OnInit, OnDestroy {
     this.isWarningShown.set(false);
     this.isIdle = false;
     this.warningEnd.emit();
+    
+    // Reset core idle timer (this will broadcast IDLE_END to all tabs automatically)
+    if (this.enableMultiTab && this.idleCore) {
+      console.log('[Multi-Tab] Session extended - resetting idle timer and broadcasting to all tabs');
+      this.idleCore.reset();
+    }
     
     // Clear all timers
     this.clearIdleTimers();
@@ -622,6 +712,11 @@ export class IdleWarningDialogComponent implements OnInit, OnDestroy {
     // Hide warning and cleanup
     this.isWarningShown.set(false);
     this.cleanup();
+    
+    // Stop core idle timer (handles multi-tab coordination)
+    if (this.enableMultiTab && this.idleCore) {
+      this.idleCore.stop();
+    }
     
     // Priority 1: User-provided callback
     if (this.onLogoutCallback) {

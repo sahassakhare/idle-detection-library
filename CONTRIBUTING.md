@@ -33,13 +33,13 @@ Before you begin, ensure you have the following installed:
 
 We welcome various types of contributions:
 
-- 🐛 **Bug reports and fixes**
-- ✨ **New features and enhancements**
-- 📚 **Documentation improvements**
-- 🧪 **Test coverage improvements**
-- 🎨 **UI/UX improvements**
-- 🔧 **Build and tooling improvements**
-- 🌐 **Internationalization**
+- **Bug reports and fixes**
+- **New features and enhancements**
+- **Documentation improvements**
+- **Test coverage improvements**
+- **UI/UX improvements**
+- **Build and tooling improvements**
+- **Internationalization**
 
 ## Development Setup
 
@@ -380,9 +380,9 @@ Current maintainers:
 
 Contributors will be recognized in:
 
-- 📝 **CONTRIBUTORS.md** file
-- 📦 **Package.json** contributors field
-- 🏆 **GitHub contributors graph**
-- 📰 **Release notes** acknowledgments
+- **CONTRIBUTORS.md** file
+- **Package.json** contributors field
+- **GitHub contributors graph**
+- **Release notes** acknowledgments
 
-Thank you for contributing to the Idle Detection Library! Your efforts help make this project better for everyone. 🎉
+Thank you for contributing to the Idle Detection Library! Your efforts help make this project better for everyone.

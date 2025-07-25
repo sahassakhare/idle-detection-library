@@ -67,10 +67,12 @@ import { IdleWarningDialogComponent } from '../../../../packages/angular-oauth-i
       </div>
     </div>
     
-    <!-- Complete idle detection solution - no *ngIf needed! -->
+    <!-- Complete idle detection solution with multi-tab support -->
     <idle-warning-dialog
-      [idleTimeout]="10000"
-      [warningTimeout]="5000"
+      [idleTimeout]="120000"
+      [warningTimeout]="20000"
+      [enableMultiTab]="true"
+      [multiTabChannelName]="'demo-idle-channel'"
       [onLogoutCallback]="handleLogout"
       [onExtendCallback]="handleExtend"
       dialogTitle="Session Timeout Warning"
@@ -381,7 +383,8 @@ export class AppComponent {
   
   constructor() {
     this.logEvent('Angular app initialized with complete idle detection solution');
-    this.logEvent('Idle timeout: 10 seconds, Warning timeout: 5 seconds');
+    this.logEvent('Idle timeout: 2 minutes, Warning timeout: 20 seconds');
+    this.logEvent('Multi-tab coordination: ENABLED - test with multiple browser tabs');
   }
   
   // Idle detection event handlers

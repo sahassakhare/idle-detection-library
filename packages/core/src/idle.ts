@@ -13,6 +13,10 @@ export class Idle {
   private timeoutTimer: ReturnType<typeof setTimeout> | null = null;
   private expiryCheckInterval: ReturnType<typeof setInterval> | null = null;
   
+  // Multi-tab communication
+  private broadcastChannel: BroadcastChannel | null = null;
+  private isHandlingBroadcast = false;
+  
   constructor(config: IdleConfig = {}) {
     this.config = {
       idleTimeout: config.idleTimeout || 20 * 60 * 1000, // 20 minutes
@@ -30,12 +34,74 @@ export class Idle {
     };
     
     this.initializeEventListeners();
+    this.setupMultiTabCommunication();
   }
   
   private initializeEventListeners(): void {
     Object.values(IdleEvent).forEach(event => {
       this.listeners.set(event, []);
     });
+  }
+  
+  private setupMultiTabCommunication(): void {
+    try {
+      this.broadcastChannel = new BroadcastChannel(`idle-${this.config.idleName}`);
+      this.broadcastChannel.onmessage = (event) => {
+        this.handleBroadcastMessage(event.data);
+      };
+    } catch (error) {
+      console.warn('BroadcastChannel not supported, multi-tab sync disabled');
+    }
+  }
+  
+  private handleBroadcastMessage(data: { event: IdleEvent; state: IdleState }): void {
+    // Only handle events from other tabs, don't re-broadcast to prevent loops
+    if (data.event && data.state && !this.isHandlingBroadcast) {
+      console.log(`[Idle Core] Received broadcast: ${data.event}`);
+      this.isHandlingBroadcast = true;
+      
+      // Update local state based on broadcast
+      switch (data.event) {
+        case IdleEvent.IDLE_END:
+          if (this.state.isIdle || this.state.isWarning) {
+            this.state.isIdle = false;
+            this.state.isWarning = false;
+            this.state.lastActivity = new Date();
+            this.clearTimers();
+            this.startIdleTimer();
+          }
+          break;
+        case IdleEvent.IDLE_START:
+          if (!this.state.isIdle) {
+            this.state.isIdle = true;
+          }
+          break;
+        case IdleEvent.WARNING_START:
+          if (!this.state.isWarning) {
+            this.state.isWarning = true;
+          }
+          break;
+        case IdleEvent.TIMEOUT:
+          this.state.isTimedOut = true;
+          this.clearTimers();
+          break;
+      }
+      
+      // Emit the event locally (without re-broadcasting)
+      this.emit(data.event, this.state);
+      this.isHandlingBroadcast = false;
+    }
+  }
+  
+  private broadcastEvent(event: IdleEvent, state: IdleState): void {
+    if (this.broadcastChannel && !this.isHandlingBroadcast) {
+      try {
+        console.log(`[Idle Core] Broadcasting: ${event}`);
+        this.broadcastChannel.postMessage({ event, state: { ...state } });
+      } catch (error) {
+        console.warn('Failed to broadcast event:', error);
+      }
+    }
   }
   
   public setIdleName(name: string): void {
@@ -114,6 +180,11 @@ export class Idle {
       this.keepalive.stop();
     }
     
+    if (this.broadcastChannel) {
+      this.broadcastChannel.close();
+      this.broadcastChannel = null;
+    }
+    
     this.reset();
   }
   
@@ -133,6 +204,7 @@ export class Idle {
     }
     
     this.emit(IdleEvent.IDLE_END, this.state);
+    this.broadcastEvent(IdleEvent.IDLE_END, this.state);
   }
   
   public getState(): IdleState {
@@ -214,6 +286,7 @@ export class Idle {
     }
     
     this.emit(IdleEvent.IDLE_START, this.state);
+    this.broadcastEvent(IdleEvent.IDLE_START, this.state);
     
     if (this.config.warningTimeout > 0) {
       this.startWarningTimer();
@@ -229,6 +302,7 @@ export class Idle {
     // Start warning immediately when idle timeout is reached
     this.state.isWarning = true;
     this.emit(IdleEvent.WARNING_START, this.state);
+    this.broadcastEvent(IdleEvent.WARNING_START, this.state);
     
     // Set timer for the warning duration - if no action, trigger timeout
     this.warningTimer = setTimeout(() => {
@@ -236,11 +310,6 @@ export class Idle {
     }, this.config.warningTimeout);
   }
   
-  private handleWarning(): void {
-    // This method is no longer needed as warning logic is in startWarningTimer
-    this.state.isWarning = true;
-    this.emit(IdleEvent.WARNING_START, this.state);
-  }
   
   private handleTimeout(): void {
     this.state.isTimedOut = true;
@@ -251,6 +320,7 @@ export class Idle {
     }
     
     this.emit(IdleEvent.TIMEOUT, this.state);
+    this.broadcastEvent(IdleEvent.TIMEOUT, this.state);
   }
   
   private startExpiryCheck(): void {

@@ -2,17 +2,18 @@
 
 A complete, zero-setup Angular library for session timeout management with industry-standard security practices. This library provides automatic idle detection, warning dialogs, and session management with minimal configuration.
 
-## ✨ Features
+## Features
 
-- **🔧 Zero Setup**: Add one component tag and you're done - no complex configuration
-- **🛡️ Industry Standard Security**: No backdrop clicks, explicit user action required
-- **⚡ Automatic**: Detects activity across your entire application automatically
-- **🎨 Highly Customizable**: Configurable timeouts, themes, messages, and styling
-- **📱 Modern Angular**: Built with Angular 18+ standalone components
-- **🚀 No Dependencies**: No NgRx, RxJS knowledge, or complex setup required
-- **♿ Accessible**: WCAG compliant with keyboard navigation and screen reader support
+- **Zero Setup**: Add one component tag and you're done - no complex configuration
+- **Industry Standard Security**: No backdrop clicks, explicit user action required
+- **Automatic**: Detects activity across your entire application automatically
+- **Highly Customizable**: Configurable timeouts, themes, messages, and styling
+- **Modern Angular**: Built with Angular 18+ standalone components
+- **No Dependencies**: No NgRx, RxJS knowledge, or complex setup required
+- **Accessible**: WCAG compliant with keyboard navigation and screen reader support
+- **Advanced Multi-Tab Sync**: Real-time coordination across all browser tabs using BroadcastChannel API
 
-## 🚀 Quick Start
+## Quick Start
 
 ### Installation
 
@@ -54,13 +55,13 @@ export class AppComponent {
 ```
 
 **That's it!** The component automatically handles:
-- ✅ Activity detection across your entire application
-- ✅ Idle state management with configurable timeouts  
-- ✅ Warning dialog display with countdown timer
-- ✅ Session extension and automatic timeout
-- ✅ Industry-standard security (no accidental dismissals)
+- Activity detection across your entire application
+- Idle state management with configurable timeouts  
+- Warning dialog display with countdown timer
+- Session extension and automatic timeout
+- Industry-standard security (no accidental dismissals)
 
-## 🎛️ Configuration
+## Configuration
 
 ### Basic Configuration
 
@@ -103,7 +104,7 @@ export class AppComponent {
 </idle-warning-dialog>
 ```
 
-## 📚 Input Properties
+##  Input Properties
 
 | Property | Type | Default | Description |
 |----------|------|---------|-------------|
@@ -112,6 +113,8 @@ export class AppComponent {
 | `activityEvents` | `string[]` | `['mousedown', 'mousemove', 'keypress', 'scroll', 'touchstart', 'click']` | DOM events that indicate user activity |
 | `enableIdleDetection` | `boolean` | `true` | Enable/disable automatic idle detection |
 | `throttleDelay` | `number` | `500` | Throttle activity events (ms) |
+| `enableMultiTab` | `boolean` | `true` | Enable multi-tab coordination |
+| `multiTabChannelName` | `string` | `'idle-detection-channel'` | localStorage key for multi-tab sync |
 | `onExtendCallback` | `() => void` | - | Called when user extends session |
 | `onLogoutCallback` | `() => void` | - | Called when session times out |
 | `dialogTitle` | `string` | `'Session Timeout Warning'` | Dialog title text |
@@ -124,7 +127,7 @@ export class AppComponent {
 | `size` | `'small' \| 'medium' \| 'large'` | `'medium'` | Dialog size |
 | `customStyles` | `object` | `{}` | Custom CSS styles |
 
-## 📡 Output Events
+##  Output Events
 
 ```typescript
 <idle-warning-dialog
@@ -148,7 +151,7 @@ export class AppComponent {
 | `sessionExtended` | User clicked extend | `void` |
 | `sessionTimeout` | Session timed out | `void` |
 
-## 💡 Usage Examples
+##  Usage Examples
 
 ### With Router Navigation
 
@@ -214,7 +217,7 @@ export class AppComponent {
 }
 ```
 
-## 🎨 Themes
+##  Themes
 
 ### Default Theme
 Clean, professional appearance suitable for most applications.
@@ -231,7 +234,7 @@ Clean, professional appearance suitable for most applications.
 </idle-warning-dialog>
 ```
 
-## 🛡️ Industry Standard Security
+##  Industry Standard Security
 
 This library follows security best practices used by major platforms:
 
@@ -247,32 +250,79 @@ This matches the behavior of:
 - AWS Console
 - Enterprise security systems
 
-## 🖥️ Browser Compatibility
+##  Advanced Multi-Tab Coordination
 
-- ✅ Chrome 90+
-- ✅ Firefox 88+
-- ✅ Safari 14+
-- ✅ Edge 90+
-- ✅ Mobile browsers (iOS Safari, Chrome Mobile)
+The idle detection component provides real-time synchronization across all browser tabs using the modern BroadcastChannel API:
 
-## ♿ Accessibility Features
+### Enhanced Multi-Tab Features
 
-- ✅ WCAG 2.1 AA compliant
-- ✅ Keyboard navigation support (Tab, Enter, Escape)
-- ✅ Screen reader compatible with ARIA labels
-- ✅ High contrast mode support
-- ✅ Focus management
-- ✅ Reduced motion support
+- **Real-time synchronization**: Instant communication between tabs using BroadcastChannel API
+- **Activity in any tab** resets the idle timer in all tabs immediately
+- **Warning dialogs appear simultaneously** across all tabs
+- **Session extension in one tab** dismisses warnings in all tabs instantly
+- **Logout in one tab** triggers logout in all tabs
+- **Loop prevention**: Advanced logic prevents infinite broadcast loops
+- **Graceful fallback**: Falls back to localStorage if BroadcastChannel unavailable
 
-## 🚀 Performance
+### Configuration
 
-- ✅ Minimal bundle size impact (~12KB gzipped)
-- ✅ Efficient event throttling
-- ✅ Memory leak prevention
-- ✅ Optimized for large applications
-- ✅ Tree-shakable exports
+```typescript
+<idle-warning-dialog
+  [enableMultiTab]="true"              // Enable/disable multi-tab sync (default: true)
+  [multiTabChannelName]="'my-app-idle'" // Custom channel name for isolation
+  [idleTimeout]="900000"
+  [warningTimeout]="60000"
+  [onLogoutCallback]="handleLogout">
+</idle-warning-dialog>
+```
 
-## 📋 Migration Guide
+### Implementation Details
+
+- **Primary**: BroadcastChannel API for real-time cross-tab communication
+- **Fallback**: localStorage-based synchronization for legacy browsers
+- **Core Integration**: Built into the core idle detection library
+- **Performance**: Lightweight with minimal overhead
+- **Reliability**: Each tab maintains independent timers with synchronized state
+
+### Advanced Use Cases
+
+- **Enterprise Applications**: Seamless multi-tab experience for business users
+- **Banking/Finance**: Coordinated security timeouts across all application instances
+- **Shared Workstations**: Consistent session management across multiple browser tabs
+- **Development/Testing**: Isolated channels prevent interference between different applications
+
+##  Browser Compatibility
+
+### BroadcastChannel API Support
+- Chrome 90+
+- Firefox 88+
+- Safari 14+
+- Edge 90+
+- Mobile browsers (iOS Safari 14+, Chrome Mobile 90+)
+
+### Fallback Support
+- All modern browsers with localStorage support
+- Graceful degradation for older browsers
+
+##  Accessibility Features
+
+- WCAG 2.1 AA compliant
+- Keyboard navigation support (Tab, Enter, Escape)
+- Screen reader compatible with ARIA labels
+- High contrast mode support
+- Focus management
+- Reduced motion support
+
+##  Performance
+
+- Minimal bundle size impact (~12KB gzipped)
+- Efficient event throttling
+- Memory leak prevention
+- Optimized for large applications
+- Tree-shakable exports
+- BroadcastChannel API is lightweight and efficient
+
+##  Migration Guide
 
 ### From Manual Implementation
 
@@ -301,7 +351,7 @@ private showWarning() { /* dialog management */ }
 </idle-warning-dialog>
 ```
 
-## 📁 Example Application
+##  Example Application
 
 Check out the complete working example in the `example/angular-sample/` directory:
 
@@ -321,7 +371,7 @@ Visit `http://localhost:4200` to see the component in action with:
 - Industry-standard dialog behavior
 - Event logging and debugging
 
-## 🔧 Troubleshooting
+##  Troubleshooting
 
 ### Dialog Not Showing
 
@@ -338,18 +388,18 @@ Visit `http://localhost:4200` to see the component in action with:
 ### Callbacks Not Working
 
 ```typescript
-// ✅ Correct - arrow functions maintain 'this' context
+// Correct - arrow functions maintain 'this' context
 handleLogout = () => {
   this.router.navigate(['/login']);
 };
 
-// ❌ Incorrect - regular functions lose 'this' context
+// Incorrect - regular functions lose 'this' context
 handleLogout() {
   this.router.navigate(['/login']); // 'this' is undefined
 }
 ```
 
-## 💬 Best Practices
+##  Best Practices
 
 1. **Set Appropriate Timeouts**: Consider your application's usage patterns
    - Banking/Financial: 15-30 minutes
@@ -358,15 +408,19 @@ handleLogout() {
 
 2. **Provide Clear Messages**: Users should understand why they're being warned
 
-3. **Test Thoroughly**: Test with different user interactions and scenarios
+3. **Test Multi-Tab Functionality**: Always test with multiple browser tabs open
 
-4. **Handle Errors Gracefully**: Implement proper error handling for logout failures
+4. **Test Thoroughly**: Test with different user interactions and scenarios
 
-5. **Consider Mobile Users**: Touch events are automatically included
+5. **Handle Errors Gracefully**: Implement proper error handling for logout failures
 
-6. **Server-Side Validation**: Always validate session timeout server-side too
+6. **Consider Mobile Users**: Touch events are automatically included
 
-## 🤝 Contributing
+7. **Server-Side Validation**: Always validate session timeout server-side too
+
+8. **Channel Isolation**: Use unique channel names for different applications
+
+##  Contributing
 
 We welcome contributions! To get started:
 
@@ -378,17 +432,17 @@ We welcome contributions! To get started:
 6. **Push** to branch: `git push origin feature/amazing-feature`
 7. **Open** a Pull Request
 
-## 📄 License
+##  License
 
 MIT License - see [LICENSE](LICENSE) file for details.
 
-## 🆘 Support
+##  Support
 
-- 📖 [Documentation & Examples](example/)
-- 🐛 [Report Issues](https://github.com/your-org/idle-detection-library/issues)
-- 💬 [Ask Questions](https://github.com/your-org/idle-detection-library/discussions)
+-  [Documentation & Examples](example/)
+-  [Report Issues](https://github.com/your-org/idle-detection-library/issues)
+-  [Ask Questions](https://github.com/your-org/idle-detection-library/discussions)
 
-## 🙏 Acknowledgments
+##  Acknowledgments
 
 - Angular team for the amazing framework
 - Community contributors and testers
@@ -396,4 +450,4 @@ MIT License - see [LICENSE](LICENSE) file for details.
 
 ---
 
-**Made with ❤️ for the Angular community**
+**Made with care for the Angular community**
