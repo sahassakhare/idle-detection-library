@@ -385,6 +385,7 @@ export class IdleWarningDialogComponent implements OnInit, OnDestroy {
   @Output() warningStart = new EventEmitter<void>();
   @Output() warningEnd = new EventEmitter<void>();
   @Output() sessionTimeout = new EventEmitter<void>();
+  @Output() sessionExtended = new EventEmitter<void>();
   @Output() activityDetected = new EventEmitter<Event>();
 
   private destroy$ = new Subject<void>();
@@ -490,8 +491,10 @@ export class IdleWarningDialogComponent implements OnInit, OnDestroy {
       document.addEventListener(event, this.boundHandleActivity, { passive: true });
     });
     
-    // Start idle timer
-    this.resetIdleTimer();
+    // Start idle timer only if not using multi-tab
+    if (!this.enableMultiTab) {
+      this.resetIdleTimer();
+    }
   }
   
   private setupMultiTabCoordination(): void {
@@ -532,10 +535,9 @@ export class IdleWarningDialogComponent implements OnInit, OnDestroy {
         this.isWarningShown.set(false);
         this.isIdle = false;
         this.warningEnd.emit();
+        this.idleEnd.emit();
         this.clearIdleTimers();
-        if (this.enableIdleDetection) {
-          this.resetIdleTimer();
-        }
+        // Don't reset local timer - let core handle the timing
       }
     });
     
@@ -561,8 +563,11 @@ export class IdleWarningDialogComponent implements OnInit, OnDestroy {
       if (this.enableMultiTab && this.idleCore) {
         console.log('[Multi-Tab] Resetting idle timer due to activity');
         this.idleCore.reset();
+        // When using multi-tab, don't use local timers
+        return;
       }
       
+      // Only use local timers when multi-tab is disabled
       // Hide warning if showing
       if (this.isWarningShown()) {
         this.isWarningShown.set(false);
@@ -580,6 +585,11 @@ export class IdleWarningDialogComponent implements OnInit, OnDestroy {
   };
 
   private resetIdleTimer(): void {
+    // Don't use local timers when multi-tab is enabled
+    if (this.enableMultiTab && this.idleCore) {
+      return;
+    }
+    
     // Clear existing timers
     this.clearIdleTimers();
     
@@ -681,14 +691,16 @@ export class IdleWarningDialogComponent implements OnInit, OnDestroy {
     if (this.enableMultiTab && this.idleCore) {
       console.log('[Multi-Tab] Session extended - resetting idle timer and broadcasting to all tabs');
       this.idleCore.reset();
-    }
-    
-    // Clear all timers
-    this.clearIdleTimers();
-    
-    // Restart idle detection if enabled
-    if (this.enableIdleDetection) {
-      this.resetIdleTimer();
+      // Clear timers but don't restart - core will handle it
+      this.clearIdleTimers();
+    } else {
+      // Only use local timers when multi-tab is disabled
+      this.clearIdleTimers();
+      
+      // Restart idle detection if enabled
+      if (this.enableIdleDetection) {
+        this.resetIdleTimer();
+      }
     }
     
     // Priority 1: User-provided callback
@@ -704,6 +716,7 @@ export class IdleWarningDialogComponent implements OnInit, OnDestroy {
     
     // Always emit to parent component
     this.extendSession.emit();
+    this.sessionExtended.emit();
   }
 
   onLogout(): void {
