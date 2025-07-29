@@ -1,0 +1,185 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Angular Idle Detection Demo</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            margin: 0;
+            padding: 20px;
+            background: #f8fafc;
+        }
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            background: white;
+            padding: 30px;
+            border-radius: 12px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+        .demo-status {
+            background: #e0f2fe;
+            border: 2px solid #0284c7;
+            border-radius: 8px;
+            padding: 20px;
+            margin: 20px 0;
+        }
+        .success {
+            background: #f0fdf4;
+            border-color: #16a34a;
+            color: #166534;
+        }
+        .warning {
+            background: #fefce8;
+            border-color: #ca8a04;
+            color: #a16207;
+        }
+        .error {
+            background: #fef2f2;
+            border-color: #dc2626;
+            color: #991b1b;
+        }
+        .instructions {
+            background: #f1f5f9;
+            padding: 20px;
+            border-radius: 8px;
+            margin: 20px 0;
+        }
+        .instructions h3 {
+            margin: 0 0 10px 0;
+            color: #1e293b;
+        }
+        .instructions ol {
+            margin: 10px 0;
+            padding-left: 20px;
+        }
+        .instructions li {
+            margin: 8px 0;
+            color: #475569;
+        }
+        .port-info {
+            background: #eff6ff;
+            border: 1px solid #3b82f6;
+            border-radius: 6px;
+            padding: 15px;
+            margin: 15px 0;
+        }
+        .feature-list {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 15px;
+            margin: 20px 0;
+        }
+        .feature-item {
+            background: #f8fafc;
+            border: 1px solid #e2e8f0;
+            border-radius: 8px;
+            padding: 15px;
+        }
+        .feature-item h4 {
+            margin: 0 0 8px 0;
+            color: #1e293b;
+        }
+        .feature-item p {
+            margin: 0;
+            color: #64748b;
+            font-size: 14px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🚀 Angular Idle Detection Demo</h1>
+        <p>A comprehensive demonstration of the Angular Idle Detection Library with custom templates and actions.</p>
+        
+        <div class="demo-status success">
+            <h3>✅ Demo Components Ready</h3>
+            <p>All example components have been built and are ready for testing.</p>
+        </div>
+        
+        <div class="port-info">
+            <strong>🌐 Access the Live Demo:</strong><br>
+            The Angular application should be running on one of these ports:
+            <ul>
+                <li><a href="http://localhost:4200" target="_blank">http://localhost:4200</a></li>
+                <li><a href="http://localhost:4201" target="_blank">http://localhost:4201</a></li>
+                <li><a href="http://localhost:4202" target="_blank">http://localhost:4202</a></li>
+            </ul>
+        </div>
+        
+        <div class="instructions">
+            <h3>📋 Demo Features Available</h3>
+            <div class="feature-list">
+                <div class="feature-item">
+                    <h4>🔧 Basic Demo</h4>
+                    <p>Standard idle warning dialog with multi-tab coordination (2 min idle, 20 sec warning)</p>
+                </div>
+                <div class="feature-item">
+                    <h4>🎨 Custom Template</h4>
+                    <p>Animated modal with circular progress indicator and custom styling</p>
+                </div>
+                <div class="feature-item">
+                    <h4>📄 Template Reference</h4>
+                    <p>Minimal dark theme using Angular template references</p>
+                </div>
+                <div class="feature-item">
+                    <h4>⚡ Custom Actions</h4>
+                    <p>4 custom action buttons with interactive configuration controls</p>
+                </div>
+            </div>
+        </div>
+        
+        <div class="instructions">
+            <h3>🧪 How to Test</h3>
+            <ol>
+                <li><strong>Visit the demo URL above</strong> - you should see 4 tabs at the top</li>
+                <li><strong>Navigate between tabs</strong> to see different implementations</li>
+                <li><strong>Wait for idle timeout</strong> (2 minutes) or reduce for testing</li>
+                <li><strong>Test multi-tab coordination</strong> by opening multiple browser tabs</li>
+                <li><strong>Try custom actions</strong> - notice different behaviors</li>
+                <li><strong>Check browser console</strong> for debugging information</li>
+                <li><strong>Inspect localStorage</strong> for 'idle-expiry-demo-idle-channel' key</li>
+            </ol>
+        </div>
+        
+        <div class="demo-status warning">
+            <h3>⚠️ If Demo Not Loading</h3>
+            <p>The Angular development server might need to be restarted. Try:</p>
+            <ol>
+                <li>Check if any of the port URLs above are accessible</li>
+                <li>Look for any TypeScript compilation errors in the terminal</li>
+                <li>Restart the Angular server: <code>npm start</code></li>
+                <li>Try different ports if needed</li>
+            </ol>
+        </div>
+        
+        <div class="instructions">
+            <h3>📁 Project Structure</h3>
+            <p>The demo includes these example components:</p>
+            <ul>
+                <li><code>app.component.ts</code> - Main app with tab navigation</li>
+                <li><code>custom-template-example.component.ts</code> - Animated custom template</li>
+                <li><code>template-ref-example.component.ts</code> - Template reference approach</li>
+                <li><code>custom-actions-example.component.ts</code> - Custom action buttons</li>
+            </ul>
+        </div>
+        
+        <div class="demo-status">
+            <h3>🎯 Key Demonstrations</h3>
+            <ul>
+                <li><strong>Custom Templates:</strong> Complete UI control with Angular template system</li>
+                <li><strong>Custom Actions:</strong> Flexible button configuration for any workflow</li>
+                <li><strong>Multi-tab Coordination:</strong> Synchronized behavior across browser tabs</li>
+                <li><strong>Industry Security:</strong> No backdrop dismissal, explicit user actions</li>
+                <li><strong>Real-time Updates:</strong> Live activity detection and countdown timers</li>
+            </ul>
+        </div>
+        
+        <footer style="margin-top: 40px; padding-top: 20px; border-top: 1px solid #e2e8f0; color: #64748b; text-align: center;">
+            <p>Angular Idle Detection Library - Custom Templates & Actions Demo</p>
+        </footer>
+    </div>
+</body>
+</html>

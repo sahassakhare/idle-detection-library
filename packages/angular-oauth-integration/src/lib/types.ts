@@ -50,3 +50,20 @@ export interface TabCoordinationMessage {
   timestamp: number;
   data?: any;
 }
+
+export interface CustomAction {
+  id: string;
+  label: string;
+  cssClass?: string;
+  icon?: string;
+  callback: () => void;
+  closeDialog?: boolean; // Whether clicking this action should close the dialog
+  order?: number; // Display order (lower numbers first)
+}
+
+export interface ActionContext {
+  timeRemaining: number;
+  formattedTime: string;
+  progressPercentage: number;
+  isWarningShown: boolean;
+}

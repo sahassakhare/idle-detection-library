@@ -7,12 +7,14 @@ import {
   OnDestroy,
   ChangeDetectionStrategy,
   signal,
-  computed
+  computed,
+  TemplateRef,
+  ContentChild
 } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { Subject, timer } from 'rxjs';
 import { takeUntil } from 'rxjs/operators';
-import { IdleWarningData } from './types';
+import { IdleWarningData, CustomAction } from './types';
 import { Idle, MultiTabExpiry, IdleEvent } from '@idle-detection/core';
 
 @Component({
@@ -33,6 +35,13 @@ import { Idle, MultiTabExpiry, IdleEvent } from '@idle-detection/core';
       (mousedown)="onMouseDown($event)"
       (mousemove)="onMouseMove($event)"
     >
+      <!-- Custom Template Support -->
+      <ng-container *ngIf="customTemplate || customTemplateRef; else defaultTemplate">
+        <ng-container *ngTemplateOutlet="(customTemplate || customTemplateRef)!; context: templateContext"></ng-container>
+      </ng-container>
+      
+      <!-- Default Template -->
+      <ng-template #defaultTemplate>
       <div 
         [class]="dialogClass"
         [ngClass]="[dialogSizeClass(), themeClass()]"
@@ -87,29 +96,51 @@ import { Idle, MultiTabExpiry, IdleEvent } from '@idle-detection/core';
         
         <!-- Actions -->
         <div [class]="actionsClass">
-          <button 
-            type="button"
-            [class]="primaryButtonClass"
-            (click)="onExtendSession()"
-            (mousedown)="$event.stopPropagation()"
-            [attr.aria-label]="displayExtendLabel()"
-            #extendButton
-          >
-            {{ displayExtendLabel() }}
-          </button>
+          <!-- Custom Actions -->
+          <ng-container *ngFor="let action of getSortedCustomActions()">
+            <button 
+              type="button"
+              [class]="action.cssClass || 'btn btn-custom'"
+              (click)="onCustomAction(action)"
+              (mousedown)="$event.stopPropagation()"
+              [attr.aria-label]="action.label"
+            >
+              <ng-container *ngIf="action.icon">
+                <span [innerHTML]="action.icon" class="action-icon"></span>
+              </ng-container>
+              {{ action.label }}
+            </button>
+          </ng-container>
           
-          <button 
-            type="button"
-            [class]="secondaryButtonClass"
-            (click)="onLogout()"
-            (mousedown)="$event.stopPropagation()"
-            [attr.aria-label]="displayLogoutLabel()"
-            #logoutButton
-          >
-            {{ displayLogoutLabel() }}
-          </button>
+          <!-- Default Actions (if not hidden) -->
+          <ng-container *ngIf="!hideDefaultActions">
+            <button 
+              *ngIf="showExtendButton"
+              type="button"
+              [class]="primaryButtonClass"
+              (click)="onExtendSession()"
+              (mousedown)="$event.stopPropagation()"
+              [attr.aria-label]="displayExtendLabel()"
+              #extendButton
+            >
+              {{ displayExtendLabel() }}
+            </button>
+            
+            <button 
+              *ngIf="showLogoutButton"
+              type="button"
+              [class]="secondaryButtonClass"
+              (click)="onLogout()"
+              (mousedown)="$event.stopPropagation()"
+              [attr.aria-label]="displayLogoutLabel()"
+              #logoutButton
+            >
+              {{ displayLogoutLabel() }}
+            </button>
+          </ng-container>
         </div>
       </div>
+      </ng-template>
     </div>
   `,
   styles: [`
@@ -272,6 +303,28 @@ import { Idle, MultiTabExpiry, IdleEvent } from '@idle-detection/core';
       background: #4b5563;
       transform: translateY(-1px);
     }
+    
+    .btn-custom {
+      background: #8b5cf6;
+      color: white;
+    }
+    
+    .btn-custom:hover {
+      background: #7c3aed;
+      transform: translateY(-1px);
+    }
+    
+    .action-icon {
+      display: inline-block;
+      margin-right: 6px;
+      vertical-align: middle;
+    }
+    
+    .action-icon svg {
+      width: 16px;
+      height: 16px;
+      fill: currentColor;
+    }
 
     /* Dark theme overrides */
     .idle-warning-dialog--dark .countdown-label,
@@ -323,6 +376,10 @@ import { Idle, MultiTabExpiry, IdleEvent } from '@idle-detection/core';
 export class IdleWarningDialogComponent implements OnInit, OnDestroy {
   @Input() warningData!: IdleWarningData;
   
+  // Custom template support
+  @ContentChild('customTemplate', { static: false }) customTemplate?: TemplateRef<any>;
+  @Input() customTemplateRef?: TemplateRef<any>; // Alternative way to pass template
+  
   // Input properties for customization
   @Input() dialogTitle?: string;
   @Input() dialogMessage?: string;
@@ -351,6 +408,12 @@ export class IdleWarningDialogComponent implements OnInit, OnDestroy {
   // Callback functions provided by user
   @Input() onExtendCallback?: () => void;
   @Input() onLogoutCallback?: () => void;
+  
+  // Custom actions support
+  @Input() customActions?: CustomAction[];
+  @Input() hideDefaultActions?: boolean = false; // Hide the default Extend/Logout buttons
+  @Input() showExtendButton?: boolean = true; // Show/hide extend button specifically
+  @Input() showLogoutButton?: boolean = true; // Show/hide logout button specifically
   
   // CSS class customization
   @Input() backdropClass: string = 'idle-warning-backdrop';
@@ -438,6 +501,34 @@ export class IdleWarningDialogComponent implements OnInit, OnDestroy {
     }
     return styles;
   });
+  
+  // Template context for custom templates
+  get templateContext() {
+    return {
+      $implicit: {
+        timeRemaining: this.timeRemaining(),
+        progressPercentage: this.progressPercentage(),
+        isWarningShown: this.isWarningShown(),
+        dialogTitle: this.displayTitle(),
+        dialogMessage: this.displayMessage(),
+        extendButtonText: this.displayExtendLabel(),
+        logoutButtonText: this.displayLogoutLabel(),
+        formattedTime: this.formatTime(this.timeRemaining()),
+        customActions: this.getSortedCustomActions()
+      },
+      onExtend: () => this.onExtendSession(),
+      onLogout: () => this.onLogout(),
+      onCustomAction: (action: CustomAction) => this.onCustomAction(action),
+      formatTime: (ms: number) => this.formatTime(ms),
+      timeRemaining: this.timeRemaining,
+      progressPercentage: this.progressPercentage,
+      theme: this.theme,
+      size: this.size,
+      hideDefaultActions: this.hideDefaultActions,
+      showExtendButton: this.showExtendButton,
+      showLogoutButton: this.showLogoutButton
+    };
+  }
 
   ngOnInit(): void {
     if (this.warningData) {
@@ -769,6 +860,35 @@ export class IdleWarningDialogComponent implements OnInit, OnDestroy {
     const minutes = Math.floor(totalSeconds / 60);
     const seconds = totalSeconds % 60;
     return `${minutes}:${seconds.toString().padStart(2, '0')}`;
+  }
+  
+  // Custom actions support
+  getSortedCustomActions(): CustomAction[] {
+    if (!this.customActions) return [];
+    return [...this.customActions].sort((a, b) => (a.order || 0) - (b.order || 0));
+  }
+  
+  onCustomAction(action: CustomAction): void {
+    console.log(`Custom action triggered: ${action.id}`);
+    
+    // Execute the callback
+    try {
+      action.callback();
+    } catch (error) {
+      console.error(`Error executing custom action ${action.id}:`, error);
+    }
+    
+    // Close dialog if specified
+    if (action.closeDialog !== false) { // Default to true
+      this.isWarningShown.set(false);
+      this.warningEnd.emit();
+      this.cleanup();
+      
+      // Reset idle detection if enabled and not multi-tab
+      if (this.enableIdleDetection && !this.enableMultiTab) {
+        this.resetIdleTimer();
+      }
+    }
   }
 
   // Public methods for programmatic control
