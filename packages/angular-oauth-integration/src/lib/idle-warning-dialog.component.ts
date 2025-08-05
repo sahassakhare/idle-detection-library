@@ -17,6 +17,68 @@ import { takeUntil } from 'rxjs/operators';
 import { IdleWarningData, CustomAction } from './types';
 import { Idle, MultiTabExpiry, IdleEvent } from '@idle-detection/core';
 
+/**
+ * Angular Idle Detection and Session Management Component
+ * 
+ * A complete, zero-setup Angular component for session timeout management with industry-standard
+ * security practices. Provides automatic idle detection, warning dialogs, and session management
+ * with minimal configuration.
+ * 
+ * ## Key Features
+ * - **Zero Setup**: Add one component tag and you're done
+ * - **Industry Standard Security**: No backdrop clicks, explicit user action required
+ * - **Multi-Tab Coordination**: Real-time synchronization across browser tabs
+ * - **Highly Customizable**: Custom templates, actions, themes, and styling
+ * - **Accessible**: WCAG compliant with keyboard navigation and screen reader support
+ * - **Modern Angular**: Built with Angular 18+ standalone components and signals
+ * 
+ * ## Basic Usage
+ * ```typescript
+ * // In your component
+ * @Component({
+ *   template: `
+ *     <idle-warning-dialog
+ *       [idleTimeout]="900000"
+ *       [warningTimeout]="60000"
+ *       [onLogoutCallback]="handleLogout">
+ *     </idle-warning-dialog>
+ *   `
+ * })
+ * export class AppComponent {
+ *   handleLogout = () => {
+ *     window.location.href = '/login';
+ *   };
+ * }
+ * ```
+ * 
+ * ## Advanced Usage with Custom Actions
+ * ```typescript
+ * @Component({
+ *   template: `
+ *     <idle-warning-dialog
+ *       [customActions]="customActions"
+ *       [enableMultiTab]="true"
+ *       [idleTimeout]="1200000"
+ *       [warningTimeout]="120000"
+ *       (sessionExtended)="onSessionExtended()">
+ *     </idle-warning-dialog>
+ *   `
+ * })
+ * export class AppComponent {
+ *   customActions: CustomAction[] = [
+ *     {
+ *       id: 'save-continue',
+ *       label: 'Save & Continue',
+ *       callback: () => this.saveWork(),
+ *       order: 1
+ *     }
+ *   ];
+ * }
+ * ```
+ * 
+ * @see {@link https://github.com/your-org/idle-detection-library} Documentation
+ * @since 1.0.0
+ */
 @Component({
   selector: 'idle-warning-dialog',
   standalone: true,
@@ -397,23 +459,187 @@ export class IdleWarningDialogComponent implements OnInit, OnDestroy {
   // Simple inputs to replace store dependencies
   @Input() initialTimeRemaining?: number = 30000; // 30 seconds default
   
-  // Idle detection configuration - makes this a complete solution
+  /**
+   * Time in milliseconds before the user is considered idle.
+   * Default is 900000 (15 minutes). Common values:
+   * - Banking/Financial: 15-30 minutes (900000-1800000)
+   * - General Business: 30-60 minutes (1800000-3600000) 
+   * - Public Computers: 5-15 minutes (300000-900000)
+   * 
+   * @default 900000
+   * @example
+   * ```html
+   * <idle-warning-dialog [idleTimeout]="1200000"> <!-- 20 minutes -->
+   * ```
+   */
   @Input() idleTimeout?: number = 900000; // 15 minutes default
+  
+  /**
+   * Duration in milliseconds for the warning dialog before automatic logout.
+   * Default is 60000 (1 minute). This gives users time to extend their session.
+   * 
+   * @default 60000
+   * @example
+   * ```html
+   * <idle-warning-dialog [warningTimeout]="120000"> <!-- 2 minutes warning -->
+   * ```
+   */
   @Input() warningTimeout?: number = 60000; // 1 minute warning default
+  
+  /**
+   * Array of DOM event names that indicate user activity.
+   * Default includes mouse, keyboard, touch, and scroll events.
+   * Customize this to suit your application's interaction patterns.
+   * 
+   * @default ['mousedown', 'mousemove', 'keypress', 'scroll', 'touchstart', 'click']
+   * @example
+   * ```html
+   * <idle-warning-dialog [activityEvents]="['click', 'keypress']">
+   * ```
+   */
   @Input() activityEvents?: string[] = ['mousedown', 'mousemove', 'keypress', 'scroll', 'touchstart', 'click'];
+  
+  /**
+   * Whether idle detection is enabled. Set to false to temporarily disable
+   * idle detection without removing the component.
+   * 
+   * @default true
+   * @example
+   * ```html
+   * <idle-warning-dialog [enableIdleDetection]="isIdleEnabled">
+   * ```
+   */
   @Input() enableIdleDetection?: boolean = true;
+  
+  /**
+   * Delay in milliseconds for throttling activity events to improve performance.
+   * Higher values reduce CPU usage but may delay idle detection reset.
+   * 
+   * @default 500
+   * @example
+   * ```html
+   * <idle-warning-dialog [throttleDelay]="1000"> <!-- 1 second throttle -->
+   * ```
+   */
   @Input() throttleDelay?: number = 500; // Throttle activity events
+  
+  /**
+   * Enable multi-tab coordination using BroadcastChannel API.
+   * When enabled, activity in any tab resets idle timers in all tabs.
+   * Disable for single-tab applications or when tabs should be independent.
+   * 
+   * @default true
+   * @example
+   * ```html
+   * <idle-warning-dialog [enableMultiTab]="false"> <!-- Disable multi-tab -->
+   * ```
+   */
   @Input() enableMultiTab?: boolean = true; // Enable multi-tab coordination
+  
+  /**
+   * Name of the BroadcastChannel for multi-tab communication.
+   * Use unique names for different applications to prevent interference.
+   * Only used when enableMultiTab is true.
+   * 
+   * @default 'idle-detection-channel'
+   * @example
+   * ```html
+   * <idle-warning-dialog multiTabChannelName="my-app-idle">
+   * ```
+   */
   @Input() multiTabChannelName?: string = 'idle-detection-channel'; // BroadcastChannel name
   
-  // Callback functions provided by user
+  /**
+   * Callback function executed when the user clicks the "Extend Session" button.
+   * This is where you should implement your session extension logic (e.g., refresh tokens).
+   * 
+   * @example
+   * ```typescript
+   * handleExtend = () => {
+   *   this.authService.refreshToken();
+   *   console.log('Session extended');
+   * };
+   * ```
+   * ```html
+   * <idle-warning-dialog [onExtendCallback]="handleExtend">
+   * ```
+   */
   @Input() onExtendCallback?: () => void;
+  
+  /**
+   * Callback function executed when the session times out or user clicks "Logout".
+   * This is where you should implement your logout logic (e.g., clear tokens, redirect).
+   * 
+   * @example
+   * ```typescript
+   * handleLogout = () => {
+   *   this.authService.logout();
+   *   this.router.navigate(['/login']);
+   * };
+   * ```
+   * ```html
+   * <idle-warning-dialog [onLogoutCallback]="handleLogout">
+   * ```
+   */
   @Input() onLogoutCallback?: () => void;
   
-  // Custom actions support
+  /**
+   * Array of custom action buttons to display in the warning dialog.
+   * These buttons appear alongside or instead of the default Extend/Logout buttons.
+   * Each action can have custom styling, icons, and behavior.
+   * 
+   * @example
+   * ```typescript
+   * customActions: CustomAction[] = [
+   *   {
+   *     id: 'save-continue',
+   *     label: 'Save & Continue',
+   *     cssClass: 'btn btn-success',
+   *     callback: () => this.saveWork(),
+   *     order: 1
+   *   }
+   * ];
+   * ```
+   * ```html
+   * <idle-warning-dialog [customActions]="customActions">
+   * ```
+   */
   @Input() customActions?: CustomAction[];
+  
+  /**
+   * Whether to hide both default action buttons (Extend Session and Logout).
+   * Set to true if you want to use only custom actions.
+   * 
+   * @default false
+   * @example
+   * ```html
+   * <idle-warning-dialog [hideDefaultActions]="true" [customActions]="myActions">
+   * ```
+   */
   @Input() hideDefaultActions?: boolean = false; // Hide the default Extend/Logout buttons
+  
+  /**
+   * Whether to show the "Extend Session" button.
+   * Set to false to hide only the extend button while keeping the logout button.
+   * 
+   * @default true
+   * @example
+   * ```html
+   * <idle-warning-dialog [showExtendButton]="false">
+   * ```
+   */  
   @Input() showExtendButton?: boolean = true; // Show/hide extend button specifically
+  
+  /**
+   * Whether to show the "Logout" button.
+   * Set to false to hide only the logout button while keeping the extend button.
+   * 
+   * @default true
+   * @example
+   * ```html
+   * <idle-warning-dialog [showLogoutButton]="false">
+   * ```
+   */
   @Input() showLogoutButton?: boolean = true; // Show/hide logout button specifically
   
   // CSS class customization
@@ -440,16 +666,158 @@ export class IdleWarningDialogComponent implements OnInit, OnDestroy {
   @Input() set extendLabel(value: string) { this.extendLabelSignal.set(value); }
   @Input() set logoutLabel(value: string) { this.logoutLabelSignal.set(value); }
 
+  /**
+   * Emitted when the user clicks the "Extend Session" button.
+   * Use this to perform additional actions when session is extended.
+   * 
+   * @example
+   * ```html
+   * <idle-warning-dialog (extendSession)="onSessionExtended()">
+   * ```
+   * ```typescript
+   * onSessionExtended() {
+   *   console.log('User extended their session');
+   *   this.trackUserActivity('session_extended');
+   * }
+   * ```
+   */
   @Output() extendSession = new EventEmitter<void>();
+  
+  /**
+   * Emitted when the user clicks the "Logout" button or session times out.
+   * Use this to perform cleanup or analytics before logout.
+   * 
+   * @example
+   * ```html
+   * <idle-warning-dialog (logout)="onUserLogout()">
+   * ```
+   * ```typescript
+   * onUserLogout() {
+   *   console.log('User is logging out');
+   *   this.saveUserPreferences();
+   * }
+   * ```
+   */
   @Output() logout = new EventEmitter<void>();
   
-  // Additional outputs for idle detection events
+  /**
+   * Emitted when the user becomes idle (after idleTimeout period).
+   * The warning dialog has not been shown yet at this point.
+   * 
+   * @example
+   * ```html
+   * <idle-warning-dialog (idleStart)="onUserIdle()">
+   * ```
+   * ```typescript
+   * onUserIdle() {
+   *   console.log('User became idle');
+   *   this.pauseAutoSave();
+   * }
+   * ```
+   */
   @Output() idleStart = new EventEmitter<void>();
+  
+  /**
+   * Emitted when the user becomes active again after being idle.
+   * This happens when activity is detected after idle state.
+   * 
+   * @example
+   * ```html
+   * <idle-warning-dialog (idleEnd)="onUserActive()">
+   * ```
+   * ```typescript
+   * onUserActive() {
+   *   console.log('User became active again');
+   *   this.resumeAutoSave();
+   * }
+   * ```
+   */
   @Output() idleEnd = new EventEmitter<void>();
+  
+  /**
+   * Emitted when the warning dialog is displayed to the user.
+   * Use this to pause non-critical operations or log analytics.
+   * 
+   * @example
+   * ```html
+   * <idle-warning-dialog (warningStart)="onWarningShown()">
+   * ```
+   * ```typescript
+   * onWarningShown() {
+   *   console.log('Timeout warning shown to user');
+   *   this.pauseBackgroundTasks();
+   * }
+   * ```
+   */
   @Output() warningStart = new EventEmitter<void>();
+  
+  /**
+   * Emitted when the warning dialog is closed (by user action or programmatically).
+   * Use this to resume operations that were paused during warning.
+   * 
+   * @example
+   * ```html
+   * <idle-warning-dialog (warningEnd)="onWarningClosed()">
+   * ```
+   * ```typescript
+   * onWarningClosed() {
+   *   console.log('Warning dialog closed');
+   *   this.resumeBackgroundTasks();
+   * }
+   * ```
+   */
   @Output() warningEnd = new EventEmitter<void>();
+  
+  /**
+   * Emitted when the session times out automatically (warning period expires).
+   * This happens when the user doesn't respond to the warning dialog.
+   * 
+   * @example
+   * ```html
+   * <idle-warning-dialog (sessionTimeout)="onSessionTimeout()">
+   * ```
+   * ```typescript
+   * onSessionTimeout() {
+   *   console.log('Session timed out automatically');
+   *   this.trackUserActivity('session_timeout');
+   * }
+   * ```
+   */
   @Output() sessionTimeout = new EventEmitter<void>();
+  
+  /**
+   * Emitted when the session is successfully extended by user action.
+   * Use this for analytics or to perform additional extension logic.
+   * 
+   * @example
+   * ```html
+   * <idle-warning-dialog (sessionExtended)="onSessionExtended()">
+   * ```
+   * ```typescript
+   * onSessionExtended() {
+   *   console.log('Session extended successfully');
+   *   this.updateLastActiveTime();
+   * }
+   * ```
+   */
   @Output() sessionExtended = new EventEmitter<void>();
+  
+  /**
+   * Emitted whenever user activity is detected (mouse, keyboard, touch, etc.).
+   * The Event object contains details about the detected activity.
+   * Use this for fine-grained activity monitoring or analytics.
+   * 
+   * @example
+   * ```html
+   * <idle-warning-dialog (activityDetected)="onActivity($event)">
+   * ```
+   * ```typescript
+   * onActivity(event: Event) {
+   *   console.log(`Activity detected: ${event.type}`);
+   *   this.logUserInteraction(event.type);
+   * }
+   * ```
+   */
   @Output() activityDetected = new EventEmitter<Event>();
 
   private destroy$ = new Subject<void>();
@@ -892,12 +1260,47 @@ export class IdleWarningDialogComponent implements OnInit, OnDestroy {
     }
   }
 
-  // Public methods for programmatic control
+  /**
+   * Temporarily disables idle detection and clears all active timers.
+   * Use this during critical operations where user interruption should be prevented.
+   * 
+   * @example
+   * ```typescript
+   * // Disable idle detection during file upload
+   * performFileUpload() {
+   *   this.idleDialog.pause();
+   *   this.uploadService.upload(file).finally(() => {
+   *     this.idleDialog.resume(); // Re-enable when done
+   *   });
+   * }
+   * ```
+   * 
+   * @public
+   * @memberof IdleWarningDialogComponent
+   */
   pause(): void {
     this.enableIdleDetection = false;
     this.clearIdleTimers();
   }
 
+  /**
+   * Re-enables idle detection and restarts the idle timer from the current moment.
+   * If a warning dialog is currently shown, it will be closed immediately.
+   * Works seamlessly with multi-tab coordination when enabled.
+   * 
+   * @example
+   * ```typescript
+   * // Resume idle detection after completing a task
+   * completeTask() {
+   *   this.taskService.complete().then(() => {
+   *     this.idleDialog.resume(); // Restart idle detection
+   *   });
+   * }
+   * ```
+   * 
+   * @public
+   * @memberof IdleWarningDialogComponent
+   */
   resume(): void {
     this.enableIdleDetection = true;
     
@@ -920,6 +1323,25 @@ export class IdleWarningDialogComponent implements OnInit, OnDestroy {
     }
   }
 
+  /**
+   * Completely resets the idle detection state and restarts the timer from scratch.
+   * Closes any open warning dialog and clears all internal state.
+   * Unlike resume(), this method resets everything to initial state.
+   * Supports multi-tab coordination when enabled.
+   * 
+   * @example
+   * ```typescript
+   * // Reset after programmatic session extension
+   * extendSession() {
+   *   this.authService.refreshToken().then(() => {
+   *     this.idleDialog.reset(); // Fresh start
+   *   });
+   * }
+   * ```
+   * 
+   * @public
+   * @memberof IdleWarningDialogComponent
+   */
   reset(): void {
     this.isWarningShown.set(false);
     this.isIdle = false;
@@ -936,10 +1358,45 @@ export class IdleWarningDialogComponent implements OnInit, OnDestroy {
     }
   }
 
+  /**
+   * Returns the timestamp of the last detected user activity.
+   * Useful for debugging idle detection behavior or implementing custom logic.
+   * 
+   * @example
+   * ```typescript
+   * // Check how long user has been inactive
+   * checkInactivity() {
+   *   const lastActivity = this.idleDialog.getLastActivity();
+   *   const inactive = Date.now() - lastActivity.getTime();
+   *   console.log(`User inactive for ${inactive}ms`);
+   * }
+   * ```
+   * 
+   * @returns {Date} The Date object representing when the last user activity was detected
+   * @public
+   * @memberof IdleWarningDialogComponent
+   */
   getLastActivity(): Date {
     return new Date(this.lastActivity);
   }
 
+  /**
+   * Returns the number of milliseconds remaining until the user is considered idle.
+   * Returns 0 if the user is already idle or if idle detection is disabled.
+   * 
+   * @example
+   * ```typescript
+   * // Display time until idle in UI
+   * updateIdleStatus() {
+   *   const timeLeft = this.idleDialog.getTimeUntilIdle();
+   *   this.idleStatusMessage = `Idle in ${Math.round(timeLeft / 1000)} seconds`;
+   * }
+   * ```
+   * 
+   * @returns {number} Milliseconds until idle state, or 0 if already idle/disabled
+   * @public
+   * @memberof IdleWarningDialogComponent
+   */
   getTimeUntilIdle(): number {
     if (!this.idleTimer || this.isIdle) return 0;
     const elapsed = Date.now() - this.lastActivity;
