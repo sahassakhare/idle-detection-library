@@ -36,8 +36,8 @@ import { Idle, MultiTabExpiry, IdleEvent } from '@idle-detection/core';
       (mousemove)="onMouseMove($event)"
     >
       <!-- Custom Template Support -->
-      <ng-container *ngIf="customTemplate || customTemplateRef; else defaultTemplate">
-        <ng-container *ngTemplateOutlet="(customTemplate || customTemplateRef)!; context: templateContext"></ng-container>
+      <ng-container *ngIf="customTemplate || anyTemplate || customTemplateRef; else defaultTemplate">
+        <ng-container *ngTemplateOutlet="(customTemplate || anyTemplate || customTemplateRef)!; context: templateContext"></ng-container>
       </ng-container>
       
       <!-- Default Template -->
@@ -378,6 +378,7 @@ export class IdleWarningDialogComponent implements OnInit, OnDestroy {
   
   // Custom template support
   @ContentChild('customTemplate', { static: false }) customTemplate?: TemplateRef<any>;
+  @ContentChild(TemplateRef, { static: false }) anyTemplate?: TemplateRef<any>; // Fallback to any template
   @Input() customTemplateRef?: TemplateRef<any>; // Alternative way to pass template
   
   // Input properties for customization
