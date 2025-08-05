@@ -158,6 +158,47 @@ export class AppComponent {
 | `sessionExtended` | User clicked extend | `void` |
 | `sessionTimeout` | Session timed out | `void` |
 
+##  Public API Methods
+
+The component provides several public methods for programmatic control:
+
+| Method | Description | Parameters | Returns |
+|--------|-------------|------------|---------|
+| `pause()` | Temporarily disables idle detection and clears all timers | None | `void` |
+| `resume()` | Re-enables idle detection, closes any open dialog, and restarts timers. Works with multi-tab coordination. | None | `void` |
+| `reset()` | Completely resets the idle state, closes dialog, and restarts idle timer from scratch. Supports multi-tab coordination. | None | `void` |
+| `getLastActivity()` | Returns the timestamp of the last detected user activity | None | `Date` |
+| `getTimeUntilIdle()` | Returns milliseconds remaining until user is considered idle | None | `number` |
+
+### Method Usage Examples
+
+```typescript
+// Pause idle detection during critical operations
+performCriticalOperation() {
+  this.idleDialog.pause();
+  
+  this.criticalService.execute().finally(() => {
+    this.idleDialog.resume(); // Re-enable when done
+  });
+}
+
+// Reset timer after programmatic session extension
+extendSessionProgrammatically() {
+  this.authService.refreshToken().then(() => {
+    this.idleDialog.reset(); // Start fresh timer
+  });
+}
+
+// Check user activity status
+checkUserStatus() {
+  const lastActivity = this.idleDialog.getLastActivity();
+  const timeUntilIdle = this.idleDialog.getTimeUntilIdle();
+  
+  console.log(\`Last activity: \${lastActivity}\`);
+  console.log(\`Time until idle: \${timeUntilIdle}ms\`);
+}
+```
+
 ##  Usage Examples
 
 ### With Router Navigation
@@ -211,15 +252,23 @@ export class AppComponent {
   @ViewChild(IdleWarningDialogComponent) idleDialog!: IdleWarningDialogComponent;
   
   pauseIdleDetection() {
-    this.idleDialog.pause();
+    this.idleDialog.pause();  // Disables idle detection temporarily
   }
   
   resumeIdleDetection() {
-    this.idleDialog.resume();
+    this.idleDialog.resume(); // Resumes idle detection and closes any open dialog
   }
   
   resetTimer() {
-    this.idleDialog.reset();
+    this.idleDialog.reset();  // Completely resets idle timer and closes dialog
+  }
+  
+  getLastActivity() {
+    return this.idleDialog.getLastActivity(); // Returns Date of last user activity
+  }
+  
+  getTimeUntilIdle() {
+    return this.idleDialog.getTimeUntilIdle(); // Returns milliseconds until idle state
   }
 }
 ```

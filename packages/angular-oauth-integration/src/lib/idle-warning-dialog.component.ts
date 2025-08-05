@@ -900,7 +900,22 @@ export class IdleWarningDialogComponent implements OnInit, OnDestroy {
 
   resume(): void {
     this.enableIdleDetection = true;
-    if (!this.isWarningShown()) {
+    
+    // Close dialog if it's currently shown
+    if (this.isWarningShown()) {
+      this.isWarningShown.set(false);
+      this.isIdle = false;
+      this.warningEnd.emit();
+    }
+    
+    // Clear any existing timers and restart idle detection
+    this.clearIdleTimers();
+    
+    // Reset core idle timer if multi-tab is enabled
+    if (this.enableMultiTab && this.idleCore) {
+      this.idleCore.reset();
+    } else {
+      // Start new idle timer for single-tab mode
       this.resetIdleTimer();
     }
   }
@@ -909,8 +924,15 @@ export class IdleWarningDialogComponent implements OnInit, OnDestroy {
     this.isWarningShown.set(false);
     this.isIdle = false;
     this.clearIdleTimers();
+    
     if (this.enableIdleDetection) {
-      this.resetIdleTimer();
+      // Reset core idle timer if multi-tab is enabled
+      if (this.enableMultiTab && this.idleCore) {
+        this.idleCore.reset();
+      } else {
+        // Start new idle timer for single-tab mode
+        this.resetIdleTimer();
+      }
     }
   }
 
