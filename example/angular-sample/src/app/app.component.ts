@@ -6,11 +6,12 @@ import { CustomTemplateExampleComponent } from './custom-template-example.compon
 import { TemplateRefExampleComponent } from './template-ref-example.component';
 import { CustomActionsExampleComponent } from './custom-actions-example.component';
 import { ContentProjectionTestComponent } from './content-projection-test.component';
+import { ManualControlExampleComponent } from './manual-control-example.component';
 
 @Component({
   selector: 'app-root',
   standalone: true,
-  imports: [CommonModule, FormsModule, IdleWarningDialogComponent, CustomTemplateExampleComponent, TemplateRefExampleComponent, CustomActionsExampleComponent, ContentProjectionTestComponent],
+  imports: [CommonModule, FormsModule, IdleWarningDialogComponent, CustomTemplateExampleComponent, TemplateRefExampleComponent, CustomActionsExampleComponent, ContentProjectionTestComponent, ManualControlExampleComponent],
   template: `
     <div class="container">
       <h1>Angular Idle Detection Demo</h1>
@@ -47,6 +48,12 @@ import { ContentProjectionTestComponent } from './content-projection-test.compon
           [class.active]="activeTab === 'content-test'"
           (click)="activeTab = 'content-test'">
           Content Projection Test
+        </button>
+        <button 
+          class="tab-btn" 
+          [class.active]="activeTab === 'manual-control'"
+          (click)="activeTab = 'manual-control'">
+          Manual Control (Resume/Pause)
         </button>
       </div>
       
@@ -88,7 +95,7 @@ import { ContentProjectionTestComponent } from './content-projection-test.compon
           
           <!-- Basic Idle Warning Dialog -->
           <idle-warning-dialog
-            [idleTimeout]="120000"
+            [idleTimeout]="60000"
             [warningTimeout]="20000"
             [enableMultiTab]="true"
             [multiTabChannelName]="'demo-idle-channel'"
@@ -141,6 +148,11 @@ import { ContentProjectionTestComponent } from './content-projection-test.compon
         <!-- Content Projection Test Tab -->
         <div *ngIf="activeTab === 'content-test'">
           <app-content-projection-test></app-content-projection-test>
+        </div>
+        
+        <!-- Manual Control Tab -->
+        <div *ngIf="activeTab === 'manual-control'">
+          <app-manual-control-example></app-manual-control-example>
         </div>
       </div>
     </div>

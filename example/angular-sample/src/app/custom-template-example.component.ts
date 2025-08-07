@@ -1,4 +1,4 @@
-import { Component } from '@angular/core';
+import { Component, ViewChild } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { IdleWarningDialogComponent } from '../../../../packages/angular-oauth-integration/src/lib/idle-warning-dialog.component';
 
@@ -9,12 +9,23 @@ import { IdleWarningDialogComponent } from '../../../../packages/angular-oauth-i
   template: `
     <div class="example-container">
       <h2>Custom Template Example</h2>
-      <p>This example shows how to use a completely custom UI template with the idle warning dialog.</p>
+      <p>This example demonstrates different approaches to handle idle warning with custom templates.</p>
+      
+      <div class="info-box">
+        <h4>📌 Three Different Approaches:</h4>
+        <ol>
+          <li><strong>Built-in onExtend:</strong> Uses the provided callback (no resume needed)</li>
+          <li><strong>Custom with resume():</strong> Custom logic then calls resume()</li>
+          <li><strong>Hybrid approach:</strong> Mix of built-in and custom actions</li>
+        </ol>
+        <p class="note">⏱️ Idle timeout: 30 seconds | Warning: 15 seconds</p>
+      </div>
       
       <!-- Idle Warning Dialog with Custom Template -->
       <idle-warning-dialog
-        [idleTimeout]="30000"
-        [warningTimeout]="10000"
+        #idleDialog
+        [idleTimeout]="60000"
+        [warningTimeout]="15000"
         [enableMultiTab]="true"
         multiTabChannelName="custom-template-demo"
         [onExtendCallback]="handleExtend"
@@ -36,8 +47,7 @@ import { IdleWarningDialogComponent } from '../../../../packages/angular-oauth-i
             
             <div class="custom-body">
               <p class="custom-message">
-                Your session has been inactive for a while. To protect your data, 
-                you'll be automatically logged out if you don't take action.
+                Your session has been inactive. Choose an action below:
               </p>
               
               <div class="time-display">
@@ -68,24 +78,52 @@ import { IdleWarningDialogComponent } from '../../../../packages/angular-oauth-i
                 </div>
               </div>
               
+              <div class="approach-label">Approach 1: Built-in onExtend</div>
               <div class="custom-actions">
                 <button class="custom-btn custom-btn-primary" (click)="onExtend()">
                   <svg class="btn-icon" viewBox="0 0 24 24" width="20" height="20">
                     <path fill="currentColor" d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm5 11h-4v4h-2v-4H7v-2h4V7h2v4h4v2z"/>
                   </svg>
-                  Stay Logged In
+                  Standard Extend (onExtend)
                 </button>
                 <button class="custom-btn custom-btn-secondary" (click)="onLogout()">
                   <svg class="btn-icon" viewBox="0 0 24 24" width="20" height="20">
                     <path fill="currentColor" d="M10.09 15.59L11.5 17l5-5-5-5-1.41 1.41L12.67 11H3v2h9.67l-2.58 2.59zM19 3H5c-1.11 0-2 .9-2 2v4h2V5h14v14H5v-4H3v4c0 1.1.89 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2z"/>
                   </svg>
-                  Log Out
+                  Log Out (onLogout)
+                </button>
+              </div>
+              
+              <div class="approach-label">Approach 2: Custom with resume()</div>
+              <div class="custom-actions">
+                <button class="custom-btn custom-btn-success" (click)="customSaveAndExtend()">
+                  💾 Save & Extend (custom + resume)
+                </button>
+                <button class="custom-btn custom-btn-warning" (click)="customPauseForTask()">
+                  ⏸️ Pause for Task
+                </button>
+              </div>
+              
+              <div class="approach-label">Approach 3: Hybrid</div>
+              <div class="custom-actions">
+                <button class="custom-btn custom-btn-info" (click)="customRefreshAndContinue()">
+                  🔄 Refresh & Continue (custom + resume)
+                </button>
+                <button class="custom-btn custom-btn-danger" (click)="emergencyClose()">
+                  ❌ Emergency Close (just resume)
                 </button>
               </div>
             </div>
           </div>
         </ng-template>
       </idle-warning-dialog>
+      
+      <div class="control-panel">
+        <h3>Manual Controls (Outside Dialog)</h3>
+        <button class="control-btn" (click)="manualPause()">⏸️ Pause Detection</button>
+        <button class="control-btn" (click)="manualResume()">▶️ Resume Detection</button>
+        <button class="control-btn" (click)="manualReset()">🔄 Reset Timer</button>
+      </div>
       
       <div class="event-log">
         <h3>Event Log</h3>
@@ -102,13 +140,36 @@ import { IdleWarningDialogComponent } from '../../../../packages/angular-oauth-i
       margin: 0 auto;
     }
     
+    .info-box {
+      background: #e3f2fd;
+      border: 1px solid #2196f3;
+      border-radius: 8px;
+      padding: 15px;
+      margin: 20px 0;
+    }
+    
+    .info-box h4 {
+      margin-top: 0;
+      color: #1565c0;
+    }
+    
+    .info-box ol {
+      margin: 10px 0 10px 20px;
+    }
+    
+    .info-box .note {
+      margin: 10px 0 0 0;
+      font-style: italic;
+      color: #666;
+    }
+    
     /* Custom Modal Styles */
     .custom-modal {
       background: linear-gradient(135deg, #ffffff 0%, #f8f9fa 100%);
       border-radius: 20px;
       padding: 0;
       width: 90%;
-      max-width: 500px;
+      max-width: 600px;
       box-shadow: 0 20px 60px rgba(0, 0, 0, 0.15);
       overflow: hidden;
       animation: customSlideIn 0.4s cubic-bezier(0.68, -0.55, 0.265, 1.55);
@@ -127,7 +188,7 @@ import { IdleWarningDialogComponent } from '../../../../packages/angular-oauth-i
     
     .custom-header {
       background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-      padding: 30px;
+      padding: 25px;
       text-align: center;
       color: white;
     }
@@ -143,27 +204,27 @@ import { IdleWarningDialogComponent } from '../../../../packages/angular-oauth-i
     }
     
     .custom-title {
-      margin: 15px 0 0 0;
-      font-size: 24px;
+      margin: 10px 0 0 0;
+      font-size: 22px;
       font-weight: 600;
     }
     
     .custom-body {
-      padding: 30px;
+      padding: 25px;
     }
     
     .custom-message {
       text-align: center;
       color: #4a5568;
-      font-size: 16px;
-      line-height: 1.6;
-      margin-bottom: 30px;
+      font-size: 15px;
+      line-height: 1.5;
+      margin-bottom: 20px;
     }
     
     .time-display {
       display: flex;
       justify-content: center;
-      margin: 30px 0;
+      margin: 20px 0;
     }
     
     .time-circle {
@@ -186,27 +247,44 @@ import { IdleWarningDialogComponent } from '../../../../packages/angular-oauth-i
       top: 50%;
       left: 50%;
       transform: translate(-50%, -50%);
-      font-size: 28px;
+      font-size: 26px;
       font-weight: 700;
       color: #2d3748;
       font-family: monospace;
     }
     
+    .approach-label {
+      text-align: center;
+      font-size: 12px;
+      color: #718096;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      margin: 20px 0 10px 0;
+      padding-top: 15px;
+      border-top: 1px solid #e2e8f0;
+    }
+    
+    .approach-label:first-of-type {
+      border-top: none;
+      padding-top: 0;
+      margin-top: 10px;
+    }
+    
     .custom-actions {
       display: flex;
-      gap: 15px;
+      gap: 10px;
       justify-content: center;
-      margin-top: 30px;
+      flex-wrap: wrap;
     }
     
     .custom-btn {
       display: flex;
       align-items: center;
-      gap: 8px;
-      padding: 12px 24px;
+      gap: 6px;
+      padding: 10px 18px;
       border: none;
-      border-radius: 10px;
-      font-size: 16px;
+      border-radius: 8px;
+      font-size: 14px;
       font-weight: 500;
       cursor: pointer;
       transition: all 0.3s ease;
@@ -232,12 +310,11 @@ import { IdleWarningDialogComponent } from '../../../../packages/angular-oauth-i
     .custom-btn-primary {
       background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
       color: white;
-      transform: translateY(0);
     }
     
     .custom-btn-primary:hover {
       transform: translateY(-2px);
-      box-shadow: 0 8px 20px rgba(102, 126, 234, 0.4);
+      box-shadow: 0 6px 16px rgba(102, 126, 234, 0.4);
     }
     
     .custom-btn-secondary {
@@ -248,33 +325,103 @@ import { IdleWarningDialogComponent } from '../../../../packages/angular-oauth-i
     .custom-btn-secondary:hover {
       background: #cbd5e0;
       transform: translateY(-2px);
-      box-shadow: 0 8px 20px rgba(0, 0, 0, 0.1);
+    }
+    
+    .custom-btn-success {
+      background: #48bb78;
+      color: white;
+    }
+    
+    .custom-btn-success:hover {
+      background: #38a169;
+      transform: translateY(-2px);
+    }
+    
+    .custom-btn-warning {
+      background: #ed8936;
+      color: white;
+    }
+    
+    .custom-btn-warning:hover {
+      background: #dd6b20;
+      transform: translateY(-2px);
+    }
+    
+    .custom-btn-info {
+      background: #4299e1;
+      color: white;
+    }
+    
+    .custom-btn-info:hover {
+      background: #3182ce;
+      transform: translateY(-2px);
+    }
+    
+    .custom-btn-danger {
+      background: #f56565;
+      color: white;
+    }
+    
+    .custom-btn-danger:hover {
+      background: #e53e3e;
+      transform: translateY(-2px);
     }
     
     .btn-icon {
-      width: 20px;
-      height: 20px;
+      width: 18px;
+      height: 18px;
     }
     
-    /* Event Log */
-    .event-log {
-      margin-top: 40px;
+    /* Control Panel */
+    .control-panel {
+      margin-top: 30px;
       padding: 20px;
       background: #f7fafc;
       border-radius: 8px;
       border: 1px solid #e2e8f0;
     }
     
-    .event-log h3 {
+    .control-panel h3 {
       margin: 0 0 15px 0;
       color: #2d3748;
     }
     
+    .control-btn {
+      padding: 8px 16px;
+      margin: 5px;
+      border: 1px solid #cbd5e0;
+      border-radius: 6px;
+      background: white;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+    
+    .control-btn:hover {
+      background: #edf2f7;
+      transform: translateY(-1px);
+    }
+    
+    /* Event Log */
+    .event-log {
+      margin-top: 30px;
+      padding: 20px;
+      background: #1a202c;
+      color: #a0aec0;
+      border-radius: 8px;
+      max-height: 300px;
+      overflow-y: auto;
+    }
+    
+    .event-log h3 {
+      margin: 0 0 15px 0;
+      color: #f7fafc;
+    }
+    
     .event-item {
-      padding: 8px 0;
-      color: #4a5568;
-      font-size: 14px;
-      border-bottom: 1px solid #e2e8f0;
+      padding: 6px 0;
+      font-size: 13px;
+      font-family: monospace;
+      border-bottom: 1px solid #2d3748;
     }
     
     .event-item:last-child {
@@ -283,42 +430,118 @@ import { IdleWarningDialogComponent } from '../../../../packages/angular-oauth-i
   `]
 })
 export class CustomTemplateExampleComponent {
+  @ViewChild('idleDialog') idleDialog!: IdleWarningDialogComponent;
+  
   events: string[] = [];
   
   constructor() {
-    this.log('Custom template example initialized');
+    this.log('🚀 Custom template example initialized');
   }
   
+  // ============ Callbacks for IdleWarningDialog ============
+  
   handleExtend = () => {
-    this.log('User chose to extend session');
+    // This is called AFTER the dialog handles everything
+    // No need to call resume() here - dialog already did it
+    this.log('✅ handleExtend callback: Session extended (dialog already handled everything)');
   };
   
   handleLogout = () => {
-    this.log('User chose to logout');
-    alert('Logout action triggered');
+    this.log('🚪 handleLogout callback: User logged out');
+    alert('Logout action triggered - would redirect to login');
   };
   
+  // ============ Approach 2: Custom Actions with resume() ============
+  
+  customSaveAndExtend() {
+    this.log('💾 Custom: Saving work...');
+    
+    // Simulate saving work
+    setTimeout(() => {
+      this.log('💾 Custom: Work saved successfully');
+      
+      // Now manually close dialog and restart timer
+      this.log('🔄 Custom: Calling resume() to close dialog and restart timer');
+      this.idleDialog.resume();
+    }, 1000);
+  }
+  
+  customPauseForTask() {
+    this.log('⏸️ Custom: Pausing idle detection for task');
+    
+    // First pause idle detection
+    this.idleDialog.pause();
+    
+    // Simulate a task
+    setTimeout(() => {
+      this.log('✅ Custom: Task completed, resuming idle detection');
+      this.idleDialog.resume(); // Resume after task
+    }, 3000);
+  }
+  
+  // ============ Approach 3: Hybrid Actions ============
+  
+  customRefreshAndContinue() {
+    this.log('🔄 Custom: Refreshing authentication...');
+    
+    // Simulate auth refresh
+    setTimeout(() => {
+      this.log('🔐 Custom: Auth refreshed');
+      this.log('🔄 Custom: Calling resume() to close dialog and restart with fresh timer');
+      this.idleDialog.resume();
+    }, 500);
+  }
+  
+  emergencyClose() {
+    this.log('❌ Custom: Emergency close - just calling resume()');
+    // Just close the dialog and restart timer
+    this.idleDialog.resume();
+  }
+  
+  // ============ Manual Controls (Outside Dialog) ============
+  
+  manualPause() {
+    this.log('⏸️ Manual: Pausing idle detection from outside');
+    this.idleDialog.pause();
+  }
+  
+  manualResume() {
+    this.log('▶️ Manual: Resuming idle detection from outside');
+    this.idleDialog.resume();
+  }
+  
+  manualReset() {
+    this.log('🔄 Manual: Resetting idle timer from outside');
+    this.idleDialog.reset();
+  }
+  
+  // ============ Event Handlers ============
+  
   onActivity(event: Event) {
-    this.log(`Activity detected: ${event.type}`);
+    // Only log click events to avoid spam
+    if (event.type === 'click') {
+      this.log(`👆 Activity: ${event.type}`);
+    }
   }
   
   onIdle() {
-    this.log('User became idle');
+    this.log('😴 User became idle');
   }
   
   onWarning() {
-    this.log('Warning dialog shown');
+    this.log('⚠️ Warning dialog shown');
   }
   
   onExtended() {
-    this.log('Session was extended');
+    this.log('✅ Session extended event emitted');
   }
   
   private log(message: string) {
     const timestamp = new Date().toLocaleTimeString();
     this.events.unshift(`[${timestamp}] ${message}`);
-    if (this.events.length > 10) {
+    if (this.events.length > 20) {
       this.events.pop();
     }
+    console.log(`[CustomTemplate] ${message}`);
   }
 }
