@@ -6,6 +6,7 @@ import {
   OnInit, 
   OnDestroy,
   ChangeDetectionStrategy,
+  ChangeDetectorRef,
   signal,
   computed,
   TemplateRef,
@@ -899,6 +900,8 @@ export class IdleWarningDialogComponent implements OnInit, OnDestroy {
     };
   }
 
+  constructor(private cdr: ChangeDetectorRef) {}
+
   ngOnInit(): void {
     console.log('[IdleWarningDialog] ngOnInit called', {
       enableIdleDetection: this.enableIdleDetection,
@@ -936,6 +939,9 @@ export class IdleWarningDialogComponent implements OnInit, OnDestroy {
         return;
       }
       this.timeRemaining.set(currentTime - 1000);
+      
+      // Trigger change detection for OnPush strategy to update custom template
+      this.cdr.markForCheck();
     }, 1000);
   }
 
@@ -1030,7 +1036,8 @@ export class IdleWarningDialogComponent implements OnInit, OnDestroy {
           this.clearIdleTimers();
           this.legitimateUserAction = false; // Reset flag
         } else {
-          // This is from passive mousemove - ignore it
+          // This is from passive mousemove - ignore it completely
+          // Don't close dialog, don't reset timer, just let countdown continue
           console.log('[Multi-Tab] Warning dialog active - ignoring IDLE_END from passive activity (mousemove)');
         }
         return;
