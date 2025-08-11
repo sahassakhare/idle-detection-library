@@ -835,7 +835,6 @@ export class IdleWarningDialogComponent implements OnInit, OnDestroy {
   // Multi-tab coordination using core Idle class
   private idleCore?: Idle;
   private multiTabExpiry?: MultiTabExpiry;
-  private legitimateUserAction = false; // Track when user action should close dialog
   
   timeRemaining = signal(0);
   cssClasses = signal<any>(null);
@@ -940,8 +939,9 @@ export class IdleWarningDialogComponent implements OnInit, OnDestroy {
       }
       this.timeRemaining.set(currentTime - 1000);
       
-      // Trigger change detection for OnPush strategy to update custom template
-      this.cdr.markForCheck();
+      // Force immediate change detection for OnPush strategy to update custom template
+      // Using detectChanges() for immediate update in both single-tab and multi-tab modes
+      this.cdr.detectChanges();
     }, 1000);
   }
 
@@ -1026,20 +1026,14 @@ export class IdleWarningDialogComponent implements OnInit, OnDestroy {
     this.idleCore.on(IdleEvent.IDLE_END, () => {
       console.log('[Multi-Tab] Idle end event received');
       if (this.isWarningShown()) {
-        if (this.legitimateUserAction) {
-          // This is from a button click or legitimate user action - close dialog
-          console.log('[Multi-Tab] Legitimate user action - closing warning dialog');
-          this.isWarningShown.set(false);
-          this.isIdle = false;
-          this.warningEnd.emit();
-          this.idleEnd.emit();
-          this.clearIdleTimers();
-          this.legitimateUserAction = false; // Reset flag
-        } else {
-          // This is from passive mousemove - ignore it completely
-          // Don't close dialog, don't reset timer, just let countdown continue
-          console.log('[Multi-Tab] Warning dialog active - ignoring IDLE_END from passive activity (mousemove)');
-        }
+        // IDLE_END during warning means someone took action (interrupts are cleared during warning)
+        // Close dialog in all tabs for synchronization
+        console.log('[Multi-Tab] Closing warning dialog - action taken in one of the tabs');
+        this.isWarningShown.set(false);
+        this.isIdle = false;
+        this.warningEnd.emit();
+        this.idleEnd.emit();
+        this.clearIdleTimers();
         return;
       }
       
@@ -1123,6 +1117,12 @@ export class IdleWarningDialogComponent implements OnInit, OnDestroy {
     console.log('[showWarning] Showing warning dialog');
     this.isWarningShown.set(true);
     this.warningStart.emit();
+    
+    // Clear interrupts during warning to prevent mouse movement from triggering IDLE_END
+    if (this.enableMultiTab && this.idleCore) {
+      console.log('[Multi-Tab] Clearing interrupts during warning dialog');
+      this.idleCore.clearInterrupts();
+    }
     
     // Initialize time remaining and start countdown
     const warningTime = this.warningTimeout || this.initialTimeRemaining || 30000;
@@ -1219,15 +1219,16 @@ export class IdleWarningDialogComponent implements OnInit, OnDestroy {
     // Update last activity time
     this.lastActivity = Date.now();
     
-    // Mark this as a legitimate user action that should close dialog
-    this.legitimateUserAction = true;
-    
-    // Reset core idle timer (this will broadcast IDLE_END to all tabs automatically)
+    // Restore interrupts before resetting (so idle detection can continue)
     if (this.enableMultiTab && this.idleCore) {
-      console.log('[Multi-Tab] Session extended - resetting idle timer and broadcasting to all tabs');
+      console.log('[Multi-Tab] Restoring interrupts and resetting idle timer');
+      const eventsString = this.activityEvents?.join(' ') || 'mousedown mousemove keypress scroll touchstart click';
+      const documentInterruptSource = new DocumentInterruptSource(eventsString);
+      this.idleCore.setInterrupts([documentInterruptSource]);
+      
+      // Reset core idle timer (this will broadcast IDLE_END to all tabs automatically)
       this.idleCore.reset();
       // The IDLE_END event handler will close the dialog
-      // Don't manually close here - let the event handler do it
     } else {
       // Single-tab mode - close dialog manually
       this.isWarningShown.set(false);
@@ -1387,11 +1388,6 @@ export class IdleWarningDialogComponent implements OnInit, OnDestroy {
     console.log('Resume called - enabling idle detection');
     this.enableIdleDetection = true;
     
-    // Mark this as a legitimate user action if dialog is shown
-    if (this.isWarningShown()) {
-      this.legitimateUserAction = true;
-    }
-    
     // Reset idle state
     this.isIdle = false;
     this.lastActivity = Date.now();
@@ -1444,10 +1440,6 @@ export class IdleWarningDialogComponent implements OnInit, OnDestroy {
    * @memberof IdleWarningDialogComponent
    */
   reset(): void {
-    // Mark this as a legitimate user action if dialog is shown
-    if (this.isWarningShown()) {
-      this.legitimateUserAction = true;
-    }
     
     this.isIdle = false;
     this.clearIdleTimers();
