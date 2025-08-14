@@ -55,6 +55,12 @@ import { ManualControlExampleComponent } from './manual-control-example.componen
           (click)="activeTab = 'manual-control'">
           Manual Control (Resume/Pause)
         </button>
+        <button 
+          class="tab-btn" 
+          [class.active]="activeTab === 'css-custom'"
+          (click)="activeTab = 'css-custom'">
+          CSS Customization
+        </button>
       </div>
       
       <!-- Tab Content -->
@@ -153,6 +159,58 @@ import { ManualControlExampleComponent } from './manual-control-example.componen
         <!-- Manual Control Tab -->
         <div *ngIf="activeTab === 'manual-control'">
           <app-manual-control-example></app-manual-control-example>
+        </div>
+        
+        <!-- CSS Customization Tab -->
+        <div *ngIf="activeTab === 'css-custom'">
+          <div class="css-custom-section">
+            <h2>🎨 CSS Class Customization Example</h2>
+            <p>This example demonstrates how to completely customize the look and feel of the idle warning dialog using CSS class inputs.</p>
+            
+            <div class="customization-info">
+              <h3>Available CSS Class Inputs:</h3>
+              <ul>
+                <li><code>backdropClass</code> - Overlay background</li>
+                <li><code>dialogClass</code> - Main dialog container</li>
+                <li><code>headerClass</code> - Dialog header section</li>
+                <li><code>titleClass</code> - Title text</li>
+                <li><code>bodyClass</code> - Body content area</li>
+                <li><code>messageClass</code> - Warning message text</li>
+                <li><code>countdownClass</code> - Countdown timer wrapper</li>
+                <li><code>progressClass</code> - Progress bar container</li>
+                <li><code>actionsClass</code> - Button container</li>
+                <li><code>primaryButtonClass</code> - Primary button styling</li>
+                <li><code>secondaryButtonClass</code> - Secondary button styling</li>
+              </ul>
+            </div>
+            
+            <!-- Customized Idle Warning Dialog -->
+            <idle-warning-dialog
+              [idleTimeout]="45000"
+              [warningTimeout]="15000"
+              [enableMultiTab]="false"
+              dialogTitle="⚠️ Session Alert"
+              dialogMessage="Your session will expire soon due to inactivity. Please choose an action to continue."
+              extendButtonText="Continue Working"
+              logoutButtonText="Sign Out"
+              backdropClass="premium-backdrop"
+              dialogClass="premium-dialog"
+              headerClass="premium-header"
+              titleClass="premium-title"
+              bodyClass="premium-body"
+              messageClass="premium-message"
+              countdownClass="premium-countdown"
+              countdownTimeClass="premium-time"
+              progressClass="premium-progress"
+              progressBarClass="premium-progress-bar"
+              actionsClass="premium-actions"
+              primaryButtonClass="premium-btn premium-btn-primary"
+              secondaryButtonClass="premium-btn premium-btn-secondary"
+              [onExtendCallback]="handleExtend"
+              [onLogoutCallback]="handleLogout"
+              (sessionExtended)="logEvent('Session extended with custom styled dialog')">
+            </idle-warning-dialog>
+          </div>
         </div>
       </div>
     </div>
@@ -477,6 +535,172 @@ import { ManualControlExampleComponent } from './manual-control-example.componen
     
     .modal-btn-secondary:hover {
       background: #4b5563;
+    }
+    
+    /* CSS Customization Tab Styles */
+    .css-custom-section {
+      padding: 20px;
+      background: #f8fafc;
+      border-radius: 8px;
+    }
+    
+    .css-custom-section h2 {
+      color: #1e293b;
+      margin-bottom: 15px;
+    }
+    
+    .customization-info {
+      background: white;
+      padding: 20px;
+      border-radius: 8px;
+      margin: 20px 0;
+      border: 1px solid #e2e8f0;
+    }
+    
+    .customization-info h3 {
+      color: #475569;
+      margin-bottom: 15px;
+    }
+    
+    .customization-info ul {
+      list-style: none;
+      padding: 0;
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+      gap: 10px;
+    }
+    
+    .customization-info li {
+      padding: 8px;
+      background: #f1f5f9;
+      border-radius: 4px;
+      font-size: 14px;
+    }
+    
+    .customization-info code {
+      color: #7c3aed;
+      font-weight: 600;
+    }
+    
+    /* Premium Custom Dialog Styles */
+    :host ::ng-deep .premium-backdrop {
+      background: radial-gradient(circle at center, rgba(124, 58, 237, 0.95), rgba(79, 70, 229, 0.95)) !important;
+      backdrop-filter: blur(12px);
+    }
+    
+    :host ::ng-deep .premium-dialog {
+      background: white;
+      border-radius: 24px;
+      overflow: hidden;
+      box-shadow: 0 30px 60px rgba(0, 0, 0, 0.4);
+      max-width: 480px;
+      animation: premiumEntry 0.5s cubic-bezier(0.34, 1.56, 0.64, 1);
+    }
+    
+    @keyframes premiumEntry {
+      from { transform: scale(0.7) rotateY(20deg); opacity: 0; }
+      to { transform: scale(1) rotateY(0); opacity: 1; }
+    }
+    
+    :host ::ng-deep .premium-header {
+      background: linear-gradient(135deg, #7c3aed, #4f46e5);
+      padding: 25px;
+      text-align: center;
+    }
+    
+    :host ::ng-deep .premium-title {
+      color: white;
+      font-size: 26px;
+      font-weight: 700;
+      margin: 0;
+      text-shadow: 2px 2px 8px rgba(0, 0, 0, 0.3);
+    }
+    
+    :host ::ng-deep .premium-body {
+      padding: 30px;
+      background: linear-gradient(to bottom, #fafaf9, #f5f5f4);
+    }
+    
+    :host ::ng-deep .premium-message {
+      color: #374151;
+      font-size: 16px;
+      line-height: 1.7;
+      text-align: center;
+      margin-bottom: 25px;
+    }
+    
+    :host ::ng-deep .premium-countdown {
+      background: linear-gradient(135deg, #fef3c7, #fed7aa);
+      border: 3px solid #f59e0b;
+      border-radius: 16px;
+      padding: 20px;
+      text-align: center;
+      margin: 20px 0;
+    }
+    
+    :host ::ng-deep .premium-time {
+      font-size: 36px;
+      font-weight: 900;
+      background: linear-gradient(135deg, #dc2626, #f59e0b);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      font-variant-numeric: tabular-nums;
+    }
+    
+    :host ::ng-deep .premium-progress {
+      height: 12px;
+      background: #e5e7eb;
+      border-radius: 6px;
+      overflow: hidden;
+      margin: 25px 0;
+    }
+    
+    :host ::ng-deep .premium-progress-bar {
+      height: 100%;
+      background: linear-gradient(90deg, #10b981, #059669);
+      transition: width 1s linear;
+    }
+    
+    :host ::ng-deep .premium-actions {
+      display: flex;
+      gap: 15px;
+      justify-content: center;
+      padding: 25px;
+      background: white;
+      border-top: 1px solid #e5e7eb;
+    }
+    
+    :host ::ng-deep .premium-btn {
+      padding: 14px 32px;
+      border-radius: 12px;
+      font-weight: 700;
+      border: none;
+      cursor: pointer;
+      transition: all 0.3s ease;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+    }
+    
+    :host ::ng-deep .premium-btn-primary {
+      background: linear-gradient(135deg, #7c3aed, #4f46e5);
+      color: white;
+      box-shadow: 0 4px 20px rgba(124, 58, 237, 0.4);
+    }
+    
+    :host ::ng-deep .premium-btn-primary:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 8px 30px rgba(124, 58, 237, 0.5);
+    }
+    
+    :host ::ng-deep .premium-btn-secondary {
+      background: white;
+      color: #7c3aed;
+      border: 2px solid #7c3aed;
+    }
+    
+    :host ::ng-deep .premium-btn-secondary:hover {
+      background: #7c3aed;
+      color: white;
     }
   `]
 })

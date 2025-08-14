@@ -134,6 +134,27 @@ export class AppComponent {
 | `showLogoutButton` | `boolean` | `true` | Show/hide logout button |
 | `customTemplateRef` | `TemplateRef<any>` | - | Custom template reference |
 
+### CSS Class Customization Inputs
+
+Complete control over dialog styling with CSS class inputs:
+
+| Property | Type | Default | Description |
+|----------|------|---------|-------------|
+| `backdropClass` | `string` | `'idle-warning-backdrop'` | Overlay background styling |
+| `dialogClass` | `string` | `'idle-warning-dialog'` | Main dialog container |
+| `headerClass` | `string` | `'idle-warning-header'` | Dialog header section |
+| `bodyClass` | `string` | `'idle-warning-body'` | Body content area |
+| `titleClass` | `string` | `'idle-warning-title'` | Title text styling |
+| `messageClass` | `string` | `'idle-warning-message'` | Warning message text |
+| `countdownClass` | `string` | `'idle-warning-countdown'` | Countdown timer wrapper |
+| `countdownLabelClass` | `string` | `'countdown-label'` | Countdown label text |
+| `countdownTimeClass` | `string` | `'countdown-time'` | Countdown time display |
+| `progressClass` | `string` | `'idle-warning-progress'` | Progress bar container |
+| `progressBarClass` | `string` | `'progress-bar'` | Progress bar styling |
+| `actionsClass` | `string` | `'idle-warning-actions'` | Button container |
+| `primaryButtonClass` | `string` | `'btn btn-primary'` | Primary button styling |
+| `secondaryButtonClass` | `string` | `'btn btn-secondary'` | Secondary button styling |
+
 ##  Output Events
 
 ```typescript
@@ -290,6 +311,238 @@ Clean, professional appearance suitable for most applications.
 </idle-warning-dialog>
 ```
 
+##  CSS Class Customization
+
+Take complete control over the dialog appearance using CSS class inputs. You can apply your own design system, themes, or custom styling:
+
+### Basic CSS Customization
+
+```typescript
+<idle-warning-dialog
+  [idleTimeout]="900000"
+  [warningTimeout]="60000"
+  [onLogoutCallback]="handleLogout"
+  
+  backdropClass="my-custom-backdrop"
+  dialogClass="my-custom-dialog"
+  titleClass="my-custom-title text-xl font-bold"
+  messageClass="my-custom-message text-gray-600"
+  primaryButtonClass="btn btn-primary"
+  secondaryButtonClass="btn btn-secondary">
+</idle-warning-dialog>
+```
+
+### Complete Styling Example
+
+```typescript
+<idle-warning-dialog
+  [idleTimeout]="600000"
+  [warningTimeout]="60000"
+  [onLogoutCallback]="handleLogout"
+  dialogTitle="Session Alert"
+  dialogMessage="Your session will expire soon. Choose an action to continue."
+  
+  <!-- Backdrop and Container -->
+  backdropClass="premium-backdrop"
+  dialogClass="premium-dialog"
+  
+  <!-- Header and Content -->
+  headerClass="premium-header"
+  titleClass="premium-title"
+  bodyClass="premium-body"
+  messageClass="premium-message"
+  
+  <!-- Countdown and Progress -->
+  countdownClass="premium-countdown"
+  countdownTimeClass="premium-time"
+  progressClass="premium-progress"
+  progressBarClass="premium-progress-bar"
+  
+  <!-- Actions -->
+  actionsClass="premium-actions"
+  primaryButtonClass="premium-btn premium-btn-primary"
+  secondaryButtonClass="premium-btn premium-btn-secondary">
+</idle-warning-dialog>
+```
+
+### CSS Implementation
+
+```css
+/* Premium styling example */
+.premium-backdrop {
+  background: radial-gradient(circle at center, rgba(124, 58, 237, 0.95), rgba(79, 70, 229, 0.95)) !important;
+  backdrop-filter: blur(12px);
+}
+
+.premium-dialog {
+  background: white;
+  border-radius: 24px;
+  overflow: hidden;
+  box-shadow: 0 30px 60px rgba(0, 0, 0, 0.4);
+  max-width: 480px;
+  animation: premiumEntry 0.5s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+@keyframes premiumEntry {
+  from { transform: scale(0.7) rotateY(20deg); opacity: 0; }
+  to { transform: scale(1) rotateY(0); opacity: 1; }
+}
+
+.premium-header {
+  background: linear-gradient(135deg, #7c3aed, #4f46e5);
+  padding: 25px;
+  text-align: center;
+}
+
+.premium-title {
+  color: white;
+  font-size: 26px;
+  font-weight: 700;
+  margin: 0;
+  text-shadow: 2px 2px 8px rgba(0, 0, 0, 0.3);
+}
+
+.premium-body {
+  padding: 30px;
+  background: linear-gradient(to bottom, #fafaf9, #f5f5f4);
+}
+
+.premium-message {
+  color: #374151;
+  font-size: 16px;
+  line-height: 1.7;
+  text-align: center;
+  margin-bottom: 25px;
+}
+
+.premium-countdown {
+  background: linear-gradient(135deg, #fef3c7, #fed7aa);
+  border: 3px solid #f59e0b;
+  border-radius: 16px;
+  padding: 20px;
+  text-align: center;
+  margin: 20px 0;
+}
+
+.premium-time {
+  font-size: 36px;
+  font-weight: 900;
+  background: linear-gradient(135deg, #dc2626, #f59e0b);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  font-variant-numeric: tabular-nums;
+}
+
+.premium-progress {
+  height: 12px;
+  background: #e5e7eb;
+  border-radius: 6px;
+  overflow: hidden;
+  margin: 25px 0;
+}
+
+.premium-progress-bar {
+  height: 100%;
+  background: linear-gradient(90deg, #10b981, #059669);
+  transition: width 1s linear;
+}
+
+.premium-actions {
+  display: flex;
+  gap: 15px;
+  justify-content: center;
+  padding: 25px;
+  background: white;
+  border-top: 1px solid #e5e7eb;
+}
+
+.premium-btn {
+  padding: 14px 32px;
+  border-radius: 12px;
+  font-weight: 700;
+  border: none;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+}
+
+.premium-btn-primary {
+  background: linear-gradient(135deg, #7c3aed, #4f46e5);
+  color: white;
+  box-shadow: 0 4px 20px rgba(124, 58, 237, 0.4);
+}
+
+.premium-btn-primary:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 30px rgba(124, 58, 237, 0.5);
+}
+
+.premium-btn-secondary {
+  background: white;
+  color: #7c3aed;
+  border: 2px solid #7c3aed;
+}
+
+.premium-btn-secondary:hover {
+  background: #7c3aed;
+  color: white;
+}
+```
+
+### Design System Integration
+
+```typescript
+// Tailwind CSS example
+<idle-warning-dialog
+  backdropClass="fixed inset-0 bg-black bg-opacity-75 backdrop-blur-sm"
+  dialogClass="bg-white rounded-2xl shadow-2xl max-w-md mx-auto"
+  headerClass="bg-gradient-to-r from-red-500 to-red-600 p-6 text-center"
+  titleClass="text-white text-xl font-bold"
+  bodyClass="p-6"
+  messageClass="text-gray-700 text-center mb-6"
+  countdownClass="bg-red-50 border border-red-200 rounded-lg p-4 text-center"
+  countdownTimeClass="text-3xl font-mono font-bold text-red-600"
+  actionsClass="flex gap-3 justify-center"
+  primaryButtonClass="bg-blue-600 hover:bg-blue-700 text-white px-6 py-2 rounded-lg"
+  secondaryButtonClass="bg-gray-200 hover:bg-gray-300 text-gray-700 px-6 py-2 rounded-lg">
+</idle-warning-dialog>
+
+// Bootstrap example
+<idle-warning-dialog
+  backdropClass="modal-backdrop fade show"
+  dialogClass="modal-dialog modal-dialog-centered"
+  headerClass="modal-header bg-warning"
+  titleClass="modal-title h4"
+  bodyClass="modal-body"
+  messageClass="text-center mb-3"
+  countdownClass="alert alert-danger text-center"
+  countdownTimeClass="display-4 font-monospace"
+  actionsClass="modal-footer justify-content-center"
+  primaryButtonClass="btn btn-primary btn-lg"
+  secondaryButtonClass="btn btn-outline-secondary btn-lg">
+</idle-warning-dialog>
+```
+
+### Available CSS Classes Reference
+
+| Class Input | Applied To | Purpose |
+|-------------|------------|---------|
+| `backdropClass` | Overlay background | Modal backdrop behind dialog |
+| `dialogClass` | Main dialog wrapper | Dialog container positioning and styling |
+| `headerClass` | Header section | Title area styling |
+| `bodyClass` | Content area | Main content wrapper |
+| `titleClass` | Title text | Dialog title typography |
+| `messageClass` | Message text | Warning message styling |
+| `countdownClass` | Countdown wrapper | Timer display container |
+| `countdownLabelClass` | Countdown label | Timer label text |
+| `countdownTimeClass` | Time display | Actual countdown numbers |
+| `progressClass` | Progress container | Progress bar wrapper |
+| `progressBarClass` | Progress fill | Animated progress indicator |
+| `actionsClass` | Button container | Action buttons wrapper |
+| `primaryButtonClass` | Primary button | Main action button (Extend) |
+| `secondaryButtonClass` | Secondary button | Secondary action button (Logout) |
+
 ##  Custom Templates
 
 Take complete control over the UI while maintaining all core functionality:
@@ -299,7 +552,7 @@ Take complete control over the UI while maintaining all core functionality:
 <idle-warning-dialog [idleTimeout]="300000" [warningTimeout]="60000">
   <ng-template #customTemplate let-data let-onExtend="onExtend" let-onLogout="onLogout">
     <div class="my-custom-dialog">
-      <h2>⏰ Session Expiring!</h2>
+      <h2>Session Expiring!</h2>
       <p>Time remaining: {{ data.formattedTime }}</p>
       <div class="progress-circle">
         <svg viewBox="0 0 100 100">
@@ -684,6 +937,14 @@ handleLogout() {
     - Consider whether actions should close the dialog (`closeDialog` property)
     - Provide clear icons and consistent styling
     - Handle action failures gracefully in callbacks
+
+11. **CSS Customization Guidelines**:
+    - Use CSS class inputs for consistent design system integration
+    - Test responsive design across different screen sizes
+    - Ensure sufficient color contrast for accessibility
+    - Consider dark mode compatibility when using custom colors
+    - Use `::ng-deep` selectors when overriding component styles from parent components
+    - Namespace your custom classes to avoid conflicts (e.g., `my-app-dialog`)
 
 ##  Contributing
 

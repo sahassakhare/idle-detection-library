@@ -176,7 +176,101 @@ interface IdleOAuthConfig {
 
 ## Advanced Features
 
-### Custom Styling
+### CSS Class Customization
+
+Complete control over dialog styling using CSS class inputs:
+
+```typescript
+<idle-warning-dialog
+  [warningData]="warningData"
+  titleText="Session Expiring Soon"
+  messageText="Your session will expire due to inactivity."
+  
+  <!-- Backdrop and Container -->
+  backdropClass="custom-backdrop"
+  dialogClass="custom-dialog"
+  
+  <!-- Header and Content -->
+  headerClass="custom-header"
+  titleClass="custom-title"
+  bodyClass="custom-body"
+  messageClass="custom-message"
+  
+  <!-- Countdown and Progress -->
+  countdownClass="custom-countdown"
+  countdownTimeClass="custom-time"
+  progressClass="custom-progress"
+  progressBarClass="custom-progress-bar"
+  
+  <!-- Actions -->
+  actionsClass="custom-actions"
+  primaryButtonClass="btn btn-primary custom-btn"
+  secondaryButtonClass="btn btn-secondary custom-btn"
+  
+  (extendSession)="onExtendSession()"
+  (logout)="onLogout()">
+</idle-warning-dialog>
+```
+
+#### Available CSS Class Inputs
+
+| Property | Default | Description |
+|----------|---------|-------------|
+| `backdropClass` | `'idle-warning-backdrop'` | Overlay background styling |
+| `dialogClass` | `'idle-warning-dialog'` | Main dialog container |
+| `headerClass` | `'idle-warning-header'` | Dialog header section |
+| `bodyClass` | `'idle-warning-body'` | Body content area |
+| `titleClass` | `'idle-warning-title'` | Title text styling |
+| `messageClass` | `'idle-warning-message'` | Warning message text |
+| `countdownClass` | `'idle-warning-countdown'` | Countdown timer wrapper |
+| `countdownLabelClass` | `'countdown-label'` | Countdown label text |
+| `countdownTimeClass` | `'countdown-time'` | Countdown time display |
+| `progressClass` | `'idle-warning-progress'` | Progress bar container |
+| `progressBarClass` | `'progress-bar'` | Progress bar styling |
+| `actionsClass` | `'idle-warning-actions'` | Button container |
+| `primaryButtonClass` | `'btn btn-primary'` | Primary button styling |
+| `secondaryButtonClass` | `'btn btn-secondary'` | Secondary button styling |
+
+#### Design System Integration Examples
+
+```typescript
+// Tailwind CSS
+<idle-warning-dialog
+  backdropClass="fixed inset-0 bg-black bg-opacity-75 backdrop-blur-sm"
+  dialogClass="bg-white rounded-2xl shadow-2xl max-w-md mx-auto"
+  titleClass="text-xl font-bold text-gray-900"
+  messageClass="text-gray-600 text-center"
+  countdownTimeClass="text-3xl font-mono font-bold text-red-600"
+  primaryButtonClass="bg-blue-600 hover:bg-blue-700 text-white px-6 py-2 rounded-lg"
+  secondaryButtonClass="bg-gray-200 hover:bg-gray-300 text-gray-700 px-6 py-2 rounded-lg">
+</idle-warning-dialog>
+
+// Bootstrap
+<idle-warning-dialog
+  backdropClass="modal-backdrop fade show"
+  dialogClass="modal-dialog modal-dialog-centered"
+  headerClass="modal-header bg-warning"
+  titleClass="modal-title h4"
+  bodyClass="modal-body"
+  countdownClass="alert alert-danger text-center"
+  primaryButtonClass="btn btn-primary btn-lg"
+  secondaryButtonClass="btn btn-outline-secondary btn-lg">
+</idle-warning-dialog>
+
+// Material Design
+<idle-warning-dialog
+  backdropClass="cdk-overlay-backdrop cdk-overlay-dark-backdrop"
+  dialogClass="mat-dialog-container"
+  headerClass="mat-dialog-header"
+  titleClass="mat-dialog-title"
+  bodyClass="mat-dialog-content"
+  actionsClass="mat-dialog-actions"
+  primaryButtonClass="mat-raised-button mat-primary"
+  secondaryButtonClass="mat-button">
+</idle-warning-dialog>
+```
+
+### Legacy Configuration Support
 
 ```typescript
 provideIdleOAuthConfig({
@@ -241,6 +335,22 @@ provideIdleOAuthConfig({
 - `messageText: string` - Dialog message
 - `extendText: string` - Extend button text
 - `logoutText: string` - Logout button text
+
+##### CSS Class Customization Inputs
+- `backdropClass: string` - Overlay background styling (default: `'idle-warning-backdrop'`)
+- `dialogClass: string` - Main dialog container (default: `'idle-warning-dialog'`)
+- `headerClass: string` - Dialog header section (default: `'idle-warning-header'`)
+- `bodyClass: string` - Body content area (default: `'idle-warning-body'`)
+- `titleClass: string` - Title text styling (default: `'idle-warning-title'`)
+- `messageClass: string` - Warning message text (default: `'idle-warning-message'`)
+- `countdownClass: string` - Countdown timer wrapper (default: `'idle-warning-countdown'`)
+- `countdownLabelClass: string` - Countdown label text (default: `'countdown-label'`)
+- `countdownTimeClass: string` - Countdown time display (default: `'countdown-time'`)
+- `progressClass: string` - Progress bar container (default: `'idle-warning-progress'`)
+- `progressBarClass: string` - Progress bar styling (default: `'progress-bar'`)
+- `actionsClass: string` - Button container (default: `'idle-warning-actions'`)
+- `primaryButtonClass: string` - Primary button styling (default: `'btn btn-primary'`)
+- `secondaryButtonClass: string` - Secondary button styling (default: `'btn btn-secondary'`)
 
 #### Outputs
 - `extendSession: EventEmitter<void>` - Extend session event

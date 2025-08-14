@@ -21,7 +21,7 @@ import { IdleWarningDialogComponent } from '../../../../packages/angular-oauth-i
         <p class="note">⏱️ Idle timeout: 30 seconds | Warning: 15 seconds</p>
       </div>
       
-      <!-- Idle Warning Dialog with Custom Template -->
+      <!-- Idle Warning Dialog with Custom Template and CSS Customization -->
       <idle-warning-dialog
         #idleDialog
         [idleTimeout]="60000"
@@ -30,6 +30,19 @@ import { IdleWarningDialogComponent } from '../../../../packages/angular-oauth-i
         multiTabChannelName="custom-template-demo"
         [onExtendCallback]="handleExtend"
         [onLogoutCallback]="handleLogout"
+        backdropClass="custom-backdrop"
+        dialogClass="custom-dialog-wrapper"
+        headerClass="custom-header-section"
+        bodyClass="custom-body-section"
+        titleClass="custom-title-text"
+        messageClass="custom-message-text"
+        countdownClass="custom-countdown-wrapper"
+        countdownTimeClass="custom-time-display"
+        progressClass="custom-progress-wrapper"
+        progressBarClass="custom-progress-bar"
+        actionsClass="custom-actions-wrapper"
+        primaryButtonClass="custom-btn custom-btn-primary"
+        secondaryButtonClass="custom-btn custom-btn-secondary"
         (activityDetected)="onActivity($event)"
         (idleStart)="onIdle()"
         (warningStart)="onWarning()"
@@ -163,7 +176,69 @@ import { IdleWarningDialogComponent } from '../../../../packages/angular-oauth-i
       color: #666;
     }
     
-    /* Custom Modal Styles */
+    /* ========================================
+       CSS CLASS CUSTOMIZATION DEMONSTRATION
+       These styles show how to use the CSS class 
+       inputs to completely customize the dialog
+       ======================================== */
+    
+    /* Override backdrop with custom styling */
+    :host ::ng-deep .custom-backdrop {
+      background: linear-gradient(135deg, rgba(102, 126, 234, 0.9), rgba(118, 75, 162, 0.9)) !important;
+      backdrop-filter: blur(10px);
+    }
+    
+    /* Custom dialog wrapper styling */
+    :host ::ng-deep .custom-dialog-wrapper {
+      animation: customDialogEntry 0.4s ease-out;
+    }
+    
+    @keyframes customDialogEntry {
+      from {
+        transform: scale(0.8) rotateX(30deg);
+        opacity: 0;
+      }
+      to {
+        transform: scale(1) rotateX(0);
+        opacity: 1;
+      }
+    }
+    
+    /* Custom button styles when using default template */
+    :host ::ng-deep .custom-btn {
+      padding: 12px 32px;
+      border-radius: 50px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+      border: none;
+      cursor: pointer;
+    }
+    
+    :host ::ng-deep .custom-btn-primary {
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: white;
+      box-shadow: 0 4px 20px rgba(102, 126, 234, 0.35);
+    }
+    
+    :host ::ng-deep .custom-btn-primary:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 6px 30px rgba(102, 126, 234, 0.45);
+    }
+    
+    :host ::ng-deep .custom-btn-secondary {
+      background: white;
+      color: #667eea;
+      border: 2px solid #667eea;
+    }
+    
+    :host ::ng-deep .custom-btn-secondary:hover {
+      background: #667eea;
+      color: white;
+    }
+    
+    /* Custom Modal Styles for Template */
     .custom-modal {
       background: linear-gradient(135deg, #ffffff 0%, #f8f9fa 100%);
       border-radius: 20px;
