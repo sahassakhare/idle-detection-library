@@ -1078,28 +1078,24 @@ export class IdleWarningDialogComponent implements OnInit, OnDestroy {
     });
     
     this.idleCore.on(IdleEvent.IDLE_END, () => {
-      this.debugLog('[Multi-Tab] Idle end event received');
+      this.debugLog('[Multi-Tab] Idle end event received', {
+        isWarningShown: this.isWarningShown(),
+        isIdle: this.isIdle
+      });
+      
+      // Always close warning dialog when IDLE_END is received
       if (this.isWarningShown()) {
-        // IDLE_END during warning means someone took action (interrupts are cleared during warning)
-        // Close dialog in all tabs for synchronization
-        this.debugLog('[Multi-Tab] Closing warning dialog - action taken in one of the tabs');
+        this.debugLog('[Multi-Tab] Closing warning dialog - user activity detected');
         this.isWarningShown.set(false);
-        this.isIdle = false;
         this.warningEnd.emit();
-        this.idleEnd.emit();
         this.clearIdleTimers();
-        return;
       }
       
-      // If no warning is shown, handle normally
+      // Reset idle state
       if (this.isIdle) {
         this.isIdle = false;
         this.idleEnd.emit();
-        this.clearIdleTimers();
       }
-      
-      // Sync countdown display with any timer reset from other tabs
-      this.syncCountdownWithExpiry();
     });
     
     // Start watching
@@ -1107,43 +1103,6 @@ export class IdleWarningDialogComponent implements OnInit, OnDestroy {
   }
   
 
-  private handleUserActivity = (event: Event) => {
-    // Throttle activity events
-    if (this.throttleTimer) return;
-    
-    this.throttleTimer = setTimeout(() => {
-      this.throttleTimer = null;
-    }, this.throttleDelay);
-    
-    // Always reset on user activity, even if warning is showing
-    if (this.enableIdleDetection) {
-      this.lastActivity = Date.now();
-      this.activityDetected.emit(event);
-      
-      // Reset core idle timer (handles multi-tab coordination automatically)
-      if (this.enableMultiTab && this.idleCore) {
-        this.debugLog('[Multi-Tab] Resetting idle timer due to activity');
-        this.idleCore.reset();
-        // When using multi-tab, don't use local timers
-        return;
-      }
-      
-      // Only use local timers when multi-tab is disabled
-      // Hide warning if showing
-      if (this.isWarningShown()) {
-        this.isWarningShown.set(false);
-        this.warningEnd.emit();
-      }
-      
-      if (this.isIdle) {
-        this.isIdle = false;
-        this.idleEnd.emit();
-      }
-      
-      this.clearIdleTimers();
-      this.resetIdleTimer();
-    }
-  };
 
   private resetIdleTimer(): void {
     // Don't use local timers when multi-tab is enabled
@@ -1279,12 +1238,26 @@ export class IdleWarningDialogComponent implements OnInit, OnDestroy {
     // Update last activity time
     this.lastActivity = Date.now();
     
-    if (!this.enableMultiTab) {
+    if (this.enableMultiTab && this.idleCore) {
+      // Multi-tab mode: force reset even during warning state
+      // This ensures user activity during warning closes the dialog
+      this.debugLog('[Activity] Forcing core reset due to user activity during warning');
+      this.idleCore.reset();
+    } else {
       // Single-tab mode: reset local timer
       this.resetIdleTimer();
+      
+      // Close warning if showing
+      if (this.isWarningShown()) {
+        this.isWarningShown.set(false);
+        this.warningEnd.emit();
+      }
+      
+      if (this.isIdle) {
+        this.isIdle = false;
+        this.idleEnd.emit();
+      }
     }
-    // Note: In multi-tab mode, the core idle detection handles the timer reset
-    // The core's DocumentInterruptSource will handle the actual idle detection
   }
 
   private cleanup(): void {

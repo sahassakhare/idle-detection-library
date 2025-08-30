@@ -218,6 +218,11 @@ export class Idle {
   }
   
   public reset(clearExpiry: boolean = true): void {
+    this.debugLog('[Core] Reset called', { clearExpiry });
+    
+    const wasIdle = this.state.isIdle;
+    const wasWarning = this.state.isWarning;
+    
     this.state = {
       isIdle: false,
       isWarning: false,
@@ -233,8 +238,17 @@ export class Idle {
       this.expiry.clear();
     }
     
-    this.emit(IdleEvent.IDLE_END, this.state);
-    this.broadcastEvent(IdleEvent.IDLE_END, this.state);
+    // Always emit and broadcast IDLE_END when resetting from idle or warning state
+    if (wasIdle || wasWarning) {
+      this.debugLog('[Core] Broadcasting IDLE_END due to reset from idle/warning state');
+      this.emit(IdleEvent.IDLE_END, this.state);
+      this.broadcastEvent(IdleEvent.IDLE_END, this.state);
+    }
+    
+    if (wasWarning) {
+      this.emit(IdleEvent.WARNING_END, this.state);
+      this.broadcastEvent(IdleEvent.WARNING_END, this.state);
+    }
   }
   
   public getState(): IdleState {
@@ -269,6 +283,8 @@ export class Idle {
       return;
     }
     
+    this.debugLog('[Core] Interrupt received - resetting idle state');
+    
     this.state.lastActivity = new Date();
     this.state.idleTime = 0;
     
@@ -291,13 +307,17 @@ export class Idle {
     }
     
     this.emit(IdleEvent.INTERRUPT, this.state);
+    this.broadcastEvent(IdleEvent.INTERRUPT, this.state);
     
-    if (wasIdle) {
+    if (wasIdle || wasWarning) {
+      this.debugLog('[Core] Broadcasting IDLE_END after interrupt');
       this.emit(IdleEvent.IDLE_END, this.state);
+      this.broadcastEvent(IdleEvent.IDLE_END, this.state);
     }
     
     if (wasWarning) {
       this.emit(IdleEvent.WARNING_END, this.state);
+      this.broadcastEvent(IdleEvent.WARNING_END, this.state);
     }
   }
   
