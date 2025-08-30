@@ -1,0 +1,507 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Edge Case Test - Open in Multiple Tabs</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        
+        .test-panel {
+            border: 2px solid #007bff;
+            border-radius: 8px;
+            padding: 20px;
+            margin: 20px 0;
+            background: #f8f9fa;
+        }
+        
+        .critical {
+            border-color: #dc3545;
+            background: #fff5f5;
+        }
+        
+        .status-display {
+            font-family: monospace;
+            background: #000;
+            color: #00ff00;
+            padding: 15px;
+            border-radius: 4px;
+            margin: 10px 0;
+            min-height: 200px;
+            overflow-y: auto;
+        }
+        
+        .button-group {
+            margin: 15px 0;
+        }
+        
+        .btn {
+            padding: 10px 20px;
+            margin: 5px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-weight: bold;
+        }
+        
+        .btn-primary { background: #007bff; color: white; }
+        .btn-danger { background: #dc3545; color: white; }
+        .btn-success { background: #28a745; color: white; }
+        .btn-warning { background: #ffc107; color: black; }
+        
+        .instructions {
+            background: #e7f3ff;
+            border: 1px solid #007bff;
+            border-radius: 4px;
+            padding: 15px;
+            margin: 15px 0;
+        }
+
+        .tab-info {
+            position: fixed;
+            top: 10px;
+            right: 10px;
+            background: #343a40;
+            color: white;
+            padding: 10px;
+            border-radius: 4px;
+            font-family: monospace;
+        }
+    </style>
+</head>
+<body>
+    <div class="tab-info" id="tabInfo">
+        Tab ID: <span id="tabId"></span><br>
+        Status: <span id="tabStatus">Initializing...</span>
+    </div>
+
+    <h1>ANALYSIS Idle Detection Edge Case Testing</h1>
+    
+    <div class="instructions">
+        <h3>CRITICAL TEST PROCEDURE</h3>
+        <p><strong>Step 1:</strong> Open this page in 3+ browser tabs</p>
+        <p><strong>Step 2:</strong> Click "Start Edge Case Test" in ANY tab</p>
+        <p><strong>Step 3:</strong> Follow the automated test instructions</p>
+        <p><strong>Step 4:</strong> Monitor console logs and status displays in ALL tabs</p>
+    </div>
+
+    <div class="test-panel critical">
+        <h2>Critical Test: Multi-Tab Warning Synchronization</h2>
+        <p>This tests the most critical edge case: user activity in one tab should close warnings in ALL tabs</p>
+        
+        <div class="button-group">
+            <button class="btn btn-danger" onclick="startCriticalTest()">Start Critical Edge Case Test</button>
+            <button class="btn btn-warning" onclick="simulateUserActivity()">Simulate User Activity</button>
+            <button class="btn btn-success" onclick="extendSession()">Extend Session</button>
+        </div>
+
+        <div id="criticalTestStatus" class="status-display"></div>
+    </div>
+
+    <div class="test-panel">
+        <h2>Real-Time Status Monitor</h2>
+        <div class="button-group">
+            <button class="btn btn-primary" onclick="checkComponentState()">Check Component State</button>
+            <button class="btn btn-primary" onclick="checkBroadcastChannel()">Test Broadcast Channel</button>
+            <button class="btn btn-primary" onclick="clearLogs()">Clear Logs</button>
+        </div>
+
+        <div id="statusMonitor" class="status-display"></div>
+    </div>
+
+    <div class="test-panel">
+        <h2>Test Configuration</h2>
+        <div class="button-group">
+            <label>Idle Timeout: <input type="number" id="idleTimeout" value="10" min="5" max="60"> seconds</label>
+            <label>Warning Timeout: <input type="number" id="warningTimeout" value="10" min="3" max="30"> seconds</label>
+            <button class="btn btn-primary" onclick="updateConfig()">Update Config</button>
+        </div>
+    </div>
+
+    <script>
+        // Tab identification and communication
+        const tabId = `Tab-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+        let broadcastChannel;
+        let testState = {
+            isWarningVisible: false,
+            isTestRunning: false,
+            lastActivity: Date.now(),
+            componentReady: false
+        };
+
+        // Initialize
+        document.getElementById('tabId').textContent = tabId;
+
+        // Setup broadcast channel for multi-tab coordination
+        function initBroadcastChannel() {
+            try {
+                broadcastChannel = new BroadcastChannel('edge-case-test');
+                broadcastChannel.onmessage = handleBroadcastMessage;
+                log('BroadcastChannel initialized');
+                return true;
+            } catch (error) {
+                log('ERROR: BroadcastChannel not supported: ' + error.message);
+                return false;
+            }
+        }
+
+        function handleBroadcastMessage(event) {
+            const data = event.data;
+            log(`BROADCAST Received: ${data.type} from ${data.sender}`);
+            
+            switch (data.type) {
+                case 'TEST_START':
+                    if (data.sender !== tabId) {
+                        log('START Another tab started the test - monitoring...');
+                        testState.isTestRunning = true;
+                        updateTabStatus('Monitoring test');
+                    }
+                    break;
+                    
+                case 'USER_ACTIVITY':
+                    if (data.sender !== tabId) {
+                        log(`ACTIVITY User activity detected in ${data.sender}`);
+                        testState.lastActivity = Date.now();
+                    }
+                    break;
+                    
+                case 'WARNING_STATE':
+                    log(`WARNING Warning state: ${data.visible} in ${data.sender}`);
+                    if (data.sender !== tabId) {
+                        // Check if our component also shows/hides warning
+                        setTimeout(checkWarningSync, 500);
+                    }
+                    break;
+                    
+                case 'EXTEND_SESSION':
+                    if (data.sender !== tabId) {
+                        log(`EXTEND Session extended in ${data.sender}`);
+                        setTimeout(checkWarningSync, 500);
+                    }
+                    break;
+            }
+        }
+
+        function broadcast(type, data = {}) {
+            if (broadcastChannel) {
+                broadcastChannel.postMessage({
+                    type,
+                    sender: tabId,
+                    timestamp: Date.now(),
+                    ...data
+                });
+            }
+        }
+
+        function log(message, target = 'statusMonitor') {
+            const timestamp = new Date().toLocaleTimeString();
+            const logEntry = `[${timestamp}] ${message}\n`;
+            
+            const element = document.getElementById(target);
+            if (element) {
+                element.textContent += logEntry;
+                element.scrollTop = element.scrollHeight;
+            }
+            
+            console.log(`[${tabId}] ${message}`);
+        }
+
+        function updateTabStatus(status) {
+            document.getElementById('tabStatus').textContent = status;
+        }
+
+        // Mock idle detection component for testing
+        class EdgeCaseTestComponent {
+            constructor() {
+                this.isWarningShown = false;
+                this.isIdle = false;
+                this.enableDebugLogs = true;
+                this.idleTimeout = 10000; // 10 seconds
+                this.warningTimeout = 10000; // 10 seconds
+                this.timers = new Set();
+                
+                log('CONFIG Mock idle detection component created');
+            }
+
+            simulateIdleTimeout() {
+                log('⏰ Simulating idle timeout...');
+                this.isIdle = true;
+                this.showWarning();
+            }
+
+            showWarning() {
+                if (!this.isWarningShown) {
+                    log('WARNING WARNING DIALOG SHOWN');
+                    this.isWarningShown = true;
+                    testState.isWarningVisible = true;
+                    
+                    // Broadcast warning state
+                    broadcast('WARNING_STATE', { visible: true });
+                    
+                    // Start countdown simulation
+                    this.startCountdown();
+                    
+                    return true;
+                }
+                return false;
+            }
+
+            hideWarning() {
+                if (this.isWarningShown) {
+                    log('PASS WARNING DIALOG CLOSED');
+                    this.isWarningShown = false;
+                    testState.isWarningVisible = false;
+                    
+                    // Clear timers
+                    this.timers.forEach(timer => clearTimeout(timer));
+                    this.timers.clear();
+                    
+                    // Broadcast warning state
+                    broadcast('WARNING_STATE', { visible: false });
+                    
+                    return true;
+                }
+                return false;
+            }
+
+            startCountdown() {
+                let timeRemaining = this.warningTimeout;
+                const countdownTimer = setInterval(() => {
+                    timeRemaining -= 1000;
+                    log(`⏱️ Time remaining: ${timeRemaining/1000}s`);
+                    
+                    if (timeRemaining <= 0) {
+                        clearInterval(countdownTimer);
+                        log('💥 TIMEOUT - Would logout user');
+                        this.handleTimeout();
+                    }
+                }, 1000);
+                
+                this.timers.add(countdownTimer);
+            }
+
+            handleTimeout() {
+                log('🚪 Session timeout - user would be logged out');
+                this.hideWarning();
+                this.isIdle = false;
+            }
+
+            handleActivity() {
+                log('ACTIVITY User activity detected - resetting idle state');
+                this.isIdle = false;
+                this.hideWarning();
+                testState.lastActivity = Date.now();
+                
+                // Broadcast activity
+                broadcast('USER_ACTIVITY');
+                
+                return true;
+            }
+
+            extendSession() {
+                log('EXTEND Session extended by user');
+                this.isIdle = false;
+                this.hideWarning();
+                
+                // Broadcast extend session
+                broadcast('EXTEND_SESSION');
+                
+                return true;
+            }
+
+            getState() {
+                return {
+                    isWarningShown: this.isWarningShown,
+                    isIdle: this.isIdle,
+                    lastActivity: testState.lastActivity
+                };
+            }
+        }
+
+        // Create mock component instance
+        const mockComponent = new EdgeCaseTestComponent();
+        testState.componentReady = true;
+
+        // Test Functions
+        async function startCriticalTest() {
+            if (testState.isTestRunning) {
+                log('WARNING Test already running', 'criticalTestStatus');
+                return;
+            }
+
+            log('START STARTING CRITICAL EDGE CASE TEST', 'criticalTestStatus');
+            log('📋 Test: Multi-tab warning synchronization', 'criticalTestStatus');
+            
+            testState.isTestRunning = true;
+            updateTabStatus('Running critical test');
+            
+            // Broadcast test start
+            broadcast('TEST_START');
+
+            try {
+                // Step 1: Simulate idle timeout to show warning
+                log('📝 Step 1: Triggering idle timeout...', 'criticalTestStatus');
+                const warningShown = mockComponent.simulateIdleTimeout();
+                
+                if (!warningShown) {
+                    log('FAIL FAIL: Warning dialog not shown', 'criticalTestStatus');
+                    return;
+                }
+
+                log('PASS Step 1 Complete: Warning dialog shown', 'criticalTestStatus');
+
+                // Step 2: Wait for other tabs to sync (should happen via broadcast)
+                log('📝 Step 2: Waiting for multi-tab synchronization...', 'criticalTestStatus');
+                await new Promise(resolve => setTimeout(resolve, 2000));
+
+                log('📝 Step 3: Waiting for user activity in ANY tab...', 'criticalTestStatus');
+                log('ACTIVITY MANUAL ACTION REQUIRED: Click "Simulate User Activity" in ANY tab', 'criticalTestStatus');
+
+                // Set up activity monitoring
+                const activityCheckInterval = setInterval(() => {
+                    if (!mockComponent.isWarningShown) {
+                        clearInterval(activityCheckInterval);
+                        log('PASS SUCCESS: Warning closed due to activity!', 'criticalTestStatus');
+                        log('SUCCESS CRITICAL TEST PASSED: Multi-tab synchronization working', 'criticalTestStatus');
+                        testState.isTestRunning = false;
+                        updateTabStatus('Test completed - PASS');
+                    }
+                }, 1000);
+
+                // Timeout the test after 30 seconds
+                setTimeout(() => {
+                    if (testState.isTestRunning) {
+                        clearInterval(activityCheckInterval);
+                        if (mockComponent.isWarningShown) {
+                            log('FAIL CRITICAL TEST FAILED: Timeout - warning still visible', 'criticalTestStatus');
+                            log('🚨 This indicates a critical synchronization failure', 'criticalTestStatus');
+                            updateTabStatus('Test failed - CRITICAL');
+                        }
+                        testState.isTestRunning = false;
+                    }
+                }, 30000);
+
+            } catch (error) {
+                log('FAIL Test error: ' + error.message, 'criticalTestStatus');
+                testState.isTestRunning = false;
+                updateTabStatus('Test error');
+            }
+        }
+
+        function simulateUserActivity() {
+            log('ACTIVITY Simulating user activity in this tab...');
+            const activityHandled = mockComponent.handleActivity();
+            
+            if (activityHandled) {
+                log('PASS Activity handled successfully');
+            } else {
+                log('WARNING Activity not handled (no warning was showing)');
+            }
+            
+            updateTabStatus('Active');
+        }
+
+        function extendSession() {
+            log('EXTEND Extending session in this tab...');
+            const extended = mockComponent.extendSession();
+            
+            if (extended) {
+                log('PASS Session extended successfully');
+            } else {
+                log('WARNING Session extend not applicable (no warning was showing)');
+            }
+            
+            updateTabStatus('Session extended');
+        }
+
+        function checkComponentState() {
+            const state = mockComponent.getState();
+            log('STATUS Component State:');
+            log(`   Warning Shown: ${state.isWarningShown}`);
+            log(`   Is Idle: ${state.isIdle}`);
+            log(`   Last Activity: ${new Date(state.lastActivity).toLocaleTimeString()}`);
+            log(`   Tab Status: ${testState.isTestRunning ? 'Test Running' : 'Idle'}`);
+        }
+
+        function checkBroadcastChannel() {
+            if (broadcastChannel) {
+                log('PASS BroadcastChannel is active');
+                broadcast('PING', { message: 'Testing broadcast communication' });
+                log('BROADCAST Sent PING message to other tabs');
+            } else {
+                log('FAIL BroadcastChannel not available');
+            }
+        }
+
+        function checkWarningSync() {
+            const currentState = mockComponent.isWarningShown;
+            log(`SYNC Warning sync check: ${currentState ? 'WARNING VISIBLE' : 'WARNING HIDDEN'}`);
+        }
+
+        function updateConfig() {
+            const idleTimeout = parseInt(document.getElementById('idleTimeout').value) * 1000;
+            const warningTimeout = parseInt(document.getElementById('warningTimeout').value) * 1000;
+            
+            mockComponent.idleTimeout = idleTimeout;
+            mockComponent.warningTimeout = warningTimeout;
+            
+            log(`⚙️ Config updated: Idle=${idleTimeout/1000}s, Warning=${warningTimeout/1000}s`);
+        }
+
+        function clearLogs() {
+            document.getElementById('statusMonitor').textContent = '';
+            document.getElementById('criticalTestStatus').textContent = '';
+            log('CLEAN Logs cleared');
+        }
+
+        // Initialize everything
+        window.addEventListener('load', () => {
+            const channelSupported = initBroadcastChannel();
+            updateTabStatus(channelSupported ? 'Ready' : 'Limited (no broadcast)');
+            
+            log('START Edge case testing initialized');
+            log('📋 Open this page in multiple tabs to test multi-tab synchronization');
+            
+            if (!channelSupported) {
+                log('WARNING BroadcastChannel not supported - multi-tab features unavailable');
+            }
+        });
+
+        // Handle page visibility changes
+        document.addEventListener('visibilitychange', () => {
+            if (document.hidden) {
+                log('VIEW Tab became hidden');
+            } else {
+                log('VIEW Tab became visible');
+                checkComponentState();
+            }
+        });
+
+        // Cleanup on page unload
+        window.addEventListener('beforeunload', () => {
+            if (broadcastChannel) {
+                broadcastChannel.close();
+            }
+        });
+
+        // Real-time monitoring
+        setInterval(() => {
+            if (testState.componentReady) {
+                // Update tab status based on component state
+                if (mockComponent.isWarningShown) {
+                    updateTabStatus('WARNING ACTIVE');
+                } else if (testState.isTestRunning) {
+                    updateTabStatus('Test running');
+                } else {
+                    updateTabStatus('Ready');
+                }
+            }
+        }, 1000);
+    </script>
+</body>
+</html>

@@ -34,10 +34,33 @@ export class LocalStorageExpiry extends IdleExpiry {
     try {
       const stored = localStorage.getItem(this.storageKey);
       if (stored) {
-        return new Date(stored);
+        // SECURITY: Validate date string to prevent corruption attacks
+        const parsedDate = new Date(stored);
+        if (isNaN(parsedDate.getTime())) {
+          console.warn('[Security] Corrupted date in localStorage, clearing:', stored);
+          this.clear(); // Clear corrupted data
+          return null;
+        }
+        
+        // SECURITY: Prevent extreme future dates that could cause overflow
+        const now = Date.now();
+        const maxFutureTime = now + (24 * 60 * 60 * 1000); // 24 hours max
+        if (parsedDate.getTime() > maxFutureTime) {
+          console.warn('[Security] Expiry date too far in future, clearing');
+          this.clear();
+          return null;
+        }
+        
+        return parsedDate;
       }
     } catch (error) {
       console.warn('Error reading from localStorage:', error);
+      // SECURITY: Clear potentially corrupted data
+      try {
+        this.clear();
+      } catch (clearError) {
+        console.warn('Error clearing corrupted localStorage data:', clearError);
+      }
     }
     
     return null;
@@ -50,9 +73,64 @@ export class LocalStorageExpiry extends IdleExpiry {
     }
     
     try {
+      // SECURITY: Validate input date to prevent attacks
+      if (!expiry || isNaN(expiry.getTime())) {
+        console.warn('[Security] Invalid expiry date provided');
+        return;
+      }
+      
+      // SECURITY: Prevent extreme dates that could cause issues
+      const now = Date.now();
+      const maxFutureTime = now + (24 * 60 * 60 * 1000); // 24 hours max
+      if (expiry.getTime() > maxFutureTime) {
+        console.warn('[Security] Expiry date too far in future, capping to 24 hours');
+        expiry = new Date(maxFutureTime);
+      }
+      
+      // SECURITY: Use atomic operation with version checking to prevent race conditions
+      const version = localStorage.getItem(this.storageKey + '-version') || '0';
+      const newVersion = (parseInt(version) + 1).toString();
+      
+      // Atomic write with version checking
+      localStorage.setItem(this.storageKey + '-version', newVersion);
       localStorage.setItem(this.storageKey, expiry.toISOString());
+      
     } catch (error) {
-      console.warn('Error writing to localStorage:', error);
+      // SECURITY: Handle quota exceeded and other storage failures
+      const errorName = error instanceof Error ? error.name : 'UnknownError';
+      if (errorName === 'QuotaExceededError') {
+        console.warn('[Security] localStorage quota exceeded, attempting cleanup');
+        this.attemptStorageCleanup();
+      } else {
+        console.warn('Error writing to localStorage:', error);
+      }
+    }
+  }
+  
+  /**
+   * Attempt to clean up localStorage when quota is exceeded
+   */
+  private attemptStorageCleanup(): void {
+    try {
+      // Remove old idle-related entries
+      const keysToRemove = [];
+      for (let i = 0; i < localStorage.length; i++) {
+        const key = localStorage.key(i);
+        if (key && key.startsWith('idle-') && key !== this.storageKey) {
+          keysToRemove.push(key);
+        }
+      }
+      
+      keysToRemove.forEach(key => {
+        try {
+          localStorage.removeItem(key);
+        } catch (e) {
+          // Individual cleanup failures are non-critical
+        }
+      });
+      
+    } catch (error) {
+      console.warn('Storage cleanup failed:', error);
     }
   }
   

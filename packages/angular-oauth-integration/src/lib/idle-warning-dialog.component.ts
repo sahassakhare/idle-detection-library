@@ -834,6 +834,7 @@ export class IdleWarningDialogComponent implements OnInit, OnDestroy {
 
   private destroy$ = new Subject<void>();
   private countdownTimer?: any;
+  private syncTimer?: any;
   
   // Idle detection state
   private idleTimer?: any;
@@ -950,37 +951,63 @@ export class IdleWarningDialogComponent implements OnInit, OnDestroy {
   }
 
   private startCountdown(): void {
+    this.debugLog('[Countdown] Starting countdown timer');
+    
     this.countdownTimer = setInterval(() => {
-      // In multi-tab mode, periodically sync with shared expiry to stay accurate
+      // In multi-tab mode, ALWAYS use shared expiry as source of truth
       if (this.enableMultiTab && this.multiTabExpiry) {
         const sharedExpiry = this.multiTabExpiry.get();
         if (sharedExpiry) {
-          const sharedRemaining = sharedExpiry.getTime() - Date.now();
+          const sharedRemaining = Math.max(0, sharedExpiry.getTime() - Date.now());
+          const currentDisplayed = this.timeRemaining();
+          
+          // Only log significant differences to avoid spam
+          if (Math.abs(sharedRemaining - currentDisplayed) > 2000) {
+            this.debugLog('[Countdown] Syncing with shared expiry', { 
+              sharedExpiry: sharedExpiry.toISOString(),
+              sharedRemaining: sharedRemaining,
+              currentDisplayed: currentDisplayed,
+              drift: Math.abs(sharedRemaining - currentDisplayed)
+            });
+          }
+          
           if (sharedRemaining > 0) {
-            // Use shared expiry as source of truth
+            // Always update to shared expiry time for consistency across tabs
             this.timeRemaining.set(sharedRemaining);
           } else {
             // Shared expiry indicates timeout
+            this.debugLog('[Countdown] Timeout reached via shared expiry');
+            clearInterval(this.countdownTimer);
+            this.countdownTimer = null;
             if (this.autoClose) {
               this.onLogout();
             }
             return;
           }
         } else {
-          // No shared expiry - fall back to local countdown
+          // No shared expiry - shouldn't happen in multi-tab mode after WARNING_START
+          this.debugLog('[Countdown] ERROR: No shared expiry in multi-tab mode');
+          
+          // Emergency fallback: set expiry based on current timeRemaining
           const currentTime = this.timeRemaining();
-          if (currentTime <= 0) {
+          if (currentTime > 0) {
+            const emergencyExpiry = new Date(Date.now() + currentTime);
+            this.multiTabExpiry.set(emergencyExpiry);
+            this.debugLog('[Countdown] Set emergency shared expiry', { expiry: emergencyExpiry.toISOString() });
+          } else {
+            // No time remaining - timeout
             if (this.autoClose) {
               this.onLogout();
             }
             return;
           }
-          this.timeRemaining.set(currentTime - 1000);
         }
       } else {
         // Single-tab mode - use local countdown
         const currentTime = this.timeRemaining();
         if (currentTime <= 0) {
+          clearInterval(this.countdownTimer);
+          this.countdownTimer = null;
           if (this.autoClose) {
             this.onLogout();
           }
@@ -989,8 +1016,7 @@ export class IdleWarningDialogComponent implements OnInit, OnDestroy {
         this.timeRemaining.set(currentTime - 1000);
       }
       
-      // Force immediate change detection for OnPush strategy to update custom template
-      // Using detectChanges() for immediate update in both single-tab and multi-tab modes
+      // Force immediate change detection for OnPush strategy
       this.cdr.detectChanges();
     }, 1000);
   }
@@ -1065,7 +1091,8 @@ export class IdleWarningDialogComponent implements OnInit, OnDestroy {
     this.idleCore.on(IdleEvent.WARNING_START, () => {
       this.debugLog('[Multi-Tab] Warning start event received');
       if (!this.isWarningShown()) {
-        this.showWarning();
+        // For tabs receiving WARNING_START via broadcast, ensure they sync with shared expiry
+        this.showWarningFromBroadcast();
       } else {
         // Already showing warning - sync countdown with shared expiry
         this.syncCountdownWithExpiry();
@@ -1160,11 +1187,62 @@ export class IdleWarningDialogComponent implements OnInit, OnDestroy {
     this.timeRemaining.set(warningTime);
     this.totalTime.set(this.warningTimeout || this.initialTimeRemaining || 30000);
     this.startCountdown();
+    this.startPeriodicSync(); // Ensure tabs stay synchronized
     
     // Start warning timeout timer
     this.warningTimer = setTimeout(() => {
       this.handleTimeout();
     }, warningTime);
+
+    // Focus first button for accessibility
+    setTimeout(() => {
+      const firstButton = document.querySelector('.btn-primary') as HTMLButtonElement;
+      if (firstButton) {
+        firstButton.focus();
+      }
+    }, 100);
+  }
+
+  /**
+   * Show warning dialog when received via broadcast (other tab triggered it)
+   * This ensures proper expiry synchronization for consistent countdown
+   */
+  private showWarningFromBroadcast(): void {
+    this.debugLog('[Multi-Tab] Showing warning from broadcast - syncing with shared expiry');
+    this.isWarningShown.set(true);
+    this.warningStart.emit();
+    
+    // DON'T clear interrupts for tabs receiving via broadcast - they should still detect activity
+    // Only the originating tab clears interrupts
+    
+    // Get shared expiry time for consistent countdown across all tabs
+    let warningTime = this.warningTimeout || 30000;
+    
+    if (this.multiTabExpiry) {
+      const sharedExpiry = this.multiTabExpiry.get();
+      if (sharedExpiry) {
+        const remainingTime = sharedExpiry.getTime() - Date.now();
+        if (remainingTime > 0) {
+          warningTime = remainingTime;
+          this.debugLog('[Multi-Tab] Using shared expiry for broadcast warning:', { 
+            sharedExpiry: sharedExpiry.toISOString(), 
+            remainingTime: remainingTime 
+          });
+        } else {
+          // Expiry already passed - shouldn't show warning
+          this.debugLog('[Multi-Tab] Shared expiry already passed - not showing warning');
+          this.isWarningShown.set(false);
+          return;
+        }
+      } else {
+        this.debugLog('[Multi-Tab] No shared expiry found for broadcast warning - using default timeout');
+      }
+    }
+    
+    this.timeRemaining.set(warningTime);
+    this.totalTime.set(this.warningTimeout || 30000);
+    this.startCountdown();
+    this.startPeriodicSync(); // Ensure tabs stay synchronized
 
     // Focus first button for accessibility
     setTimeout(() => {
@@ -1182,18 +1260,50 @@ export class IdleWarningDialogComponent implements OnInit, OnDestroy {
     if (this.enableMultiTab && this.multiTabExpiry) {
       const sharedExpiry = this.multiTabExpiry.get();
       if (sharedExpiry) {
-        const remainingTime = sharedExpiry.getTime() - Date.now();
-        if (remainingTime > 0 && remainingTime !== this.timeRemaining()) {
-          this.debugLog('[Multi-Tab] Syncing countdown with shared expiry:', { 
-            currentRemaining: this.timeRemaining(),
+        const remainingTime = Math.max(0, sharedExpiry.getTime() - Date.now());
+        const currentTime = this.timeRemaining();
+        const drift = Math.abs(remainingTime - currentTime);
+        
+        // Sync if drift is more than 1 second
+        if (drift > 1000) {
+          this.debugLog('[Sync] Correcting countdown drift:', { 
+            currentRemaining: currentTime,
             sharedRemaining: remainingTime,
+            drift: drift,
             sharedExpiry: sharedExpiry.toISOString()
           });
           this.timeRemaining.set(remainingTime);
           // Force change detection for synced display
           this.cdr.detectChanges();
         }
+      } else {
+        this.debugLog('[Sync] No shared expiry available for sync');
       }
+    }
+  }
+
+  /**
+   * Start periodic sync to prevent countdown drift across tabs
+   */
+  private startPeriodicSync(): void {
+    if (this.enableMultiTab && !this.syncTimer) {
+      this.debugLog('[Sync] Starting periodic countdown sync');
+      this.syncTimer = setInterval(() => {
+        if (this.isWarningShown() && this.multiTabExpiry) {
+          this.syncCountdownWithExpiry();
+        }
+      }, 2000); // Sync every 2 seconds to prevent drift
+    }
+  }
+
+  /**
+   * Stop periodic sync
+   */
+  private stopPeriodicSync(): void {
+    if (this.syncTimer) {
+      clearInterval(this.syncTimer);
+      this.syncTimer = null;
+      this.debugLog('[Sync] Stopped periodic countdown sync');
     }
   }
 
@@ -1225,6 +1335,7 @@ export class IdleWarningDialogComponent implements OnInit, OnDestroy {
       clearTimeout(this.throttleTimer);
       this.throttleTimer = null;
     }
+    this.stopPeriodicSync(); // Stop countdown synchronization
   }
 
   private handleActivity(event: Event): void {

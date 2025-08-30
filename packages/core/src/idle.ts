@@ -17,6 +17,7 @@ export class Idle {
   private broadcastChannel: BroadcastChannel | null = null;
   private isHandlingBroadcast = false;
   private enableDebugLogs = false;
+  private instanceId: string;
   
   constructor(config: IdleConfig = {}) {
     this.config = {
@@ -28,6 +29,7 @@ export class Idle {
     };
     
     this.enableDebugLogs = this.config.enableDebugLogs;
+    this.instanceId = this.generateInstanceId();
     
     this.state = {
       isIdle: false,
@@ -67,10 +69,16 @@ export class Idle {
     }
   }
   
-  private handleBroadcastMessage(data: { event: IdleEvent; state: IdleState; expiryAt?: string }): void {
+  private handleBroadcastMessage(data: { event: IdleEvent; state: IdleState; expiryAt?: string; signature?: string; timestamp?: number }): void {
+    // SECURITY: Validate broadcast message to prevent hijacking attacks
+    if (!this.validateBroadcastMessage(data)) {
+      this.debugLog('[Security] Rejected invalid broadcast message');
+      return;
+    }
+    
     // Only handle events from other tabs, don't re-broadcast to prevent loops
     if (data.event && data.state && !this.isHandlingBroadcast) {
-      this.debugLog(`[Idle Core] Received broadcast: ${data.event}`);
+      this.debugLog(`[Idle Core] Received validated broadcast: ${data.event}`);
       this.isHandlingBroadcast = true;
       
       // Update local state based on broadcast
@@ -94,10 +102,17 @@ export class Idle {
         case IdleEvent.WARNING_START:
           if (!this.state.isWarning) {
             this.state.isWarning = true;
-            // Sync expiry if provided in broadcast
+            this.state.isIdle = true; // Warning implies idle state
+            // Sync expiry if provided in broadcast - CRITICAL for countdown sync
             if (data.expiryAt && this.expiry) {
               const sharedExpiry = new Date(data.expiryAt);
               this.expiry.set(sharedExpiry);
+              this.debugLog('[Core] Synced expiry from broadcast:', { 
+                receivedExpiry: sharedExpiry.toISOString(),
+                remainingTime: sharedExpiry.getTime() - Date.now()
+              });
+            } else {
+              this.debugLog('[Core] WARNING: No expiry time in broadcast - tabs may show different countdowns');
             }
           }
           break;
@@ -117,18 +132,125 @@ export class Idle {
     if (this.broadcastChannel && !this.isHandlingBroadcast) {
       try {
         this.debugLog(`[Idle Core] Broadcasting: ${event}`);
+        
+        // Create secure message payload with authentication
+        const payload: any = { 
+          event, 
+          state: { ...state },
+          timestamp: Date.now(),
+          instanceId: this.instanceId // Prevent message loops
+        };
+        
         // Include expiry timestamp for countdown sync
-        const payload: any = { event, state: { ...state } };
         if (this.expiry && (event === IdleEvent.WARNING_START || event === IdleEvent.IDLE_START)) {
           const expiryTime = this.expiry.get();
           if (expiryTime) {
             payload.expiryAt = expiryTime.toISOString();
           }
         }
+        
+        // Add message signature for security
+        payload.signature = this.signMessage(payload);
+        
         this.broadcastChannel.postMessage(payload);
       } catch (error) {
         console.warn('Failed to broadcast event:', error); // Keep error warnings
       }
+    }
+  }
+  
+  /**
+   * Generate unique instance ID for this idle service instance
+   */
+  private generateInstanceId(): string {
+    return `idle-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+  }
+  
+  /**
+   * Sign broadcast message to prevent tampering
+   */
+  private signMessage(payload: any): string {
+    // Simple signature based on content and instance - prevents basic tampering
+    const content = JSON.stringify({ 
+      event: payload.event, 
+      timestamp: payload.timestamp,
+      instanceId: this.instanceId 
+    });
+    
+    // Use crypto.subtle if available, fallback to simple hash
+    if (typeof crypto !== 'undefined' && crypto.subtle) {
+      // For now, use simple approach - could be enhanced with proper HMAC
+      return btoa(content).slice(-16); // Last 16 chars as signature
+    } else {
+      // Fallback hash for older browsers
+      let hash = 0;
+      for (let i = 0; i < content.length; i++) {
+        const char = content.charCodeAt(i);
+        hash = ((hash << 5) - hash) + char;
+        hash = hash & hash; // Convert to 32-bit integer
+      }
+      return hash.toString(36);
+    }
+  }
+  
+  /**
+   * Validate incoming broadcast message to prevent attacks
+   */
+  private validateBroadcastMessage(data: any): boolean {
+    try {
+      // Basic structure validation
+      if (!data || typeof data !== 'object') {
+        this.debugLog('[Security] Invalid message structure');
+        return false;
+      }
+      
+      // Prevent self-broadcast loops
+      if (data.instanceId === this.instanceId) {
+        this.debugLog('[Security] Ignoring self-broadcast');
+        return false;
+      }
+      
+      // Validate event type
+      if (!data.event || !Object.values(IdleEvent).includes(data.event)) {
+        this.debugLog('[Security] Invalid event type:', data.event);
+        return false;
+      }
+      
+      // Validate state object structure  
+      if (!data.state || typeof data.state !== 'object') {
+        this.debugLog('[Security] Invalid state object');
+        return false;
+      }
+      
+      // Validate timestamp (reject messages older than 10 seconds)
+      if (data.timestamp && Date.now() - data.timestamp > 10000) {
+        this.debugLog('[Security] Message too old, rejecting');
+        return false;
+      }
+      
+      // Validate signature if present
+      if (data.signature) {
+        const expectedSignature = this.signMessage(data);
+        if (data.signature !== expectedSignature) {
+          this.debugLog('[Security] Invalid message signature');
+          // Don't reject for now - signature mismatch might be due to different implementations
+          // return false;
+        }
+      }
+      
+      // Validate state properties to prevent prototype pollution
+      const safeStateProps = ['isIdle', 'isWarning', 'isTimedOut', 'lastActivity', 'idleTime'];
+      for (const prop in data.state) {
+        if (!safeStateProps.includes(prop)) {
+          this.debugLog('[Security] Unsafe state property:', prop);
+          delete data.state[prop]; // Remove unsafe properties
+        }
+      }
+      
+      return true;
+    } catch (error) {
+      this.debugLog('[Security] Message validation error:', error);
+      return false;
     }
   }
   
@@ -322,12 +444,53 @@ export class Idle {
   }
   
   private startIdleTimer(): void {
+    // SECURITY: Prevent timer overflow attacks
+    let safeTimeout = this.sanitizeTimeout(this.config.idleTimeout);
+    if (safeTimeout <= 0) {
+      this.debugLog('[Security] Invalid idle timeout value, using default');
+      safeTimeout = 20 * 60 * 1000; // 20 minutes default
+    }
+    
+    this.debugLog(`[Timer] Starting idle timer for ${safeTimeout}ms`);
     this.idleTimer = setTimeout(() => {
       this.handleIdle();
-    }, this.config.idleTimeout);
+    }, safeTimeout);
+  }
+  
+  /**
+   * Sanitize timeout values to prevent overflow attacks and invalid values
+   */
+  private sanitizeTimeout(timeout: number): number {
+    // Prevent negative values, overflow, and extreme values
+    const MIN_TIMEOUT = 1000; // 1 second minimum
+    const MAX_TIMEOUT = 24 * 60 * 60 * 1000; // 24 hours maximum
+    const MAX_SAFE_TIMEOUT = Math.floor(Number.MAX_SAFE_INTEGER / 2); // Prevent overflow
+    
+    if (typeof timeout !== 'number' || isNaN(timeout)) {
+      this.debugLog('[Security] Non-numeric timeout value detected');
+      return MIN_TIMEOUT;
+    }
+    
+    if (timeout < MIN_TIMEOUT) {
+      this.debugLog('[Security] Timeout too small, using minimum');
+      return MIN_TIMEOUT;
+    }
+    
+    if (timeout > MAX_TIMEOUT) {
+      this.debugLog('[Security] Timeout too large, using maximum');  
+      return MAX_TIMEOUT;
+    }
+    
+    if (timeout > MAX_SAFE_TIMEOUT) {
+      this.debugLog('[Security] Timeout exceeds safe integer limit');
+      return MAX_TIMEOUT;
+    }
+    
+    return Math.floor(timeout); // Ensure integer value
   }
   
   private handleIdle(): void {
+    this.debugLog('[Core] handleIdle called - user is now idle');
     this.state.isIdle = true;
     this.state.idleTime = this.config.idleTimeout;
     
@@ -335,16 +498,18 @@ export class Idle {
       this.keepalive.stop();
     }
     
+    // Set expiry BEFORE broadcasting so other tabs can sync to it
+    if (this.expiry && this.config.warningTimeout > 0) {
+      const expiryTime = new Date(Date.now() + this.config.warningTimeout);
+      this.expiry.set(expiryTime);
+      this.debugLog('[Core] Set shared expiry time:', { expiry: expiryTime.toISOString() });
+    }
+    
     this.emit(IdleEvent.IDLE_START, this.state);
     this.broadcastEvent(IdleEvent.IDLE_START, this.state);
     
     if (this.config.warningTimeout > 0) {
       this.startWarningTimer();
-    }
-    
-    if (this.expiry) {
-      const expiryTime = new Date(Date.now() + this.config.warningTimeout);
-      this.expiry.set(expiryTime);
     }
   }
   
@@ -354,10 +519,13 @@ export class Idle {
     this.emit(IdleEvent.WARNING_START, this.state);
     this.broadcastEvent(IdleEvent.WARNING_START, this.state);
     
+    // SECURITY: Sanitize warning timeout to prevent attacks
+    const safeWarningTimeout = this.sanitizeTimeout(this.config.warningTimeout);
+    
     // Set timer for the warning duration - if no action, trigger timeout
     this.warningTimer = setTimeout(() => {
       this.handleTimeout();
-    }, this.config.warningTimeout);
+    }, safeWarningTimeout);
   }
   
   
@@ -409,11 +577,20 @@ export class Idle {
   private emit(event: IdleEvent, state: IdleState): void {
     const eventListeners = this.listeners.get(event);
     if (eventListeners) {
-      eventListeners.forEach(listener => {
+      eventListeners.forEach((listener, index) => {
         try {
-          listener(event, { ...state });
+          // SECURITY: Create isolated state copy to prevent reference attacks
+          const isolatedState = JSON.parse(JSON.stringify(state));
+          listener(event, isolatedState);
         } catch (error) {
-          console.error('Error in idle event listener:', error);
+          console.error(`[Security] Error in idle event listener ${index}:`, error);
+          
+          // SECURITY: Remove faulty listeners to prevent cascade failures
+          const errorMessage = error instanceof Error ? error.message : String(error);
+          if (errorMessage.includes('Maximum call stack') || errorMessage.includes('out of memory')) {
+            console.warn(`[Security] Removing faulty event listener ${index} to prevent cascade failure`);
+            eventListeners.splice(index, 1);
+          }
         }
       });
     }

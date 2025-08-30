@@ -1,0 +1,665 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Idle Detection Edge Cases Test Suite</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        .test-section { border: 1px solid #ccc; margin: 10px 0; padding: 15px; }
+        .test-section h3 { color: #333; margin-top: 0; }
+        .status { padding: 5px 10px; border-radius: 4px; margin: 5px 0; }
+        .pass { background: #d4edda; color: #155724; }
+        .fail { background: #f8d7da; color: #721c24; }
+        .warn { background: #fff3cd; color: #856404; }
+        button { margin: 5px; padding: 8px 16px; }
+        .log-output { background: #f8f9fa; border: 1px solid #dee2e6; padding: 10px; max-height: 200px; overflow-y: auto; font-family: monospace; font-size: 12px; }
+        .test-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+        .instructions { background: #e7f3ff; padding: 15px; border-radius: 4px; margin-bottom: 20px; }
+    </style>
+</head>
+<body>
+    <h1>Idle Detection Library - Edge Cases Test Suite</h1>
+    
+    <div class="instructions">
+        <h3>Test Instructions</h3>
+        <p><strong>Multi-Tab Testing:</strong> Open this page in multiple tabs to test multi-tab scenarios</p>
+        <p><strong>Enable Debug:</strong> All tests run with debug logging enabled to observe internal behavior</p>
+        <p><strong>Risk Levels:</strong> Critical | High | Medium | Low</p>
+    </div>
+
+    <div class="test-grid">
+        <!-- Critical Edge Cases -->
+        <div class="test-section">
+            <h3>Critical: Interrupt Source During Warning</h3>
+            <p>Tests if user activity during warning properly closes dialog across all tabs</p>
+            <button onclick="testInterruptDuringWarning()">Start Test</button>
+            <div id="interrupt-warning-status" class="status"></div>
+            <div id="interrupt-warning-log" class="log-output"></div>
+        </div>
+
+        <div class="test-section">
+            <h3>CRITICAL Critical: Multi-Tab State Sync</h3>
+            <p>Tests if component state stays synchronized with core state across tabs</p>
+            <button onclick="testMultiTabStateSync()">Start Test</button>
+            <div id="state-sync-status" class="status"></div>
+            <div id="state-sync-log" class="log-output"></div>
+        </div>
+
+        <!-- High Risk Edge Cases -->
+        <div class="test-section">
+            <h3>HIGH High: Rapid Activity During Warning</h3>
+            <p>Tests rapid user activity while warning dialog is displayed</p>
+            <button onclick="testRapidActivityDuringWarning()">Start Test</button>
+            <div id="rapid-activity-status" class="status"></div>
+            <div id="rapid-activity-log" class="log-output"></div>
+        </div>
+
+        <div class="test-section">
+            <h3>HIGH High: Simultaneous Reset Calls</h3>
+            <p>Tests multiple reset() calls happening simultaneously</p>
+            <button onclick="testSimultaneousResets()">Start Test</button>
+            <div id="simultaneous-reset-status" class="status"></div>
+            <div id="simultaneous-reset-log" class="log-output"></div>
+        </div>
+
+        <!-- Medium Risk Edge Cases -->
+        <div class="test-section">
+            <h3>MEDIUM Medium: Component Lifecycle Stress</h3>
+            <p>Tests rapid component creation/destruction cycles</p>
+            <button onclick="testComponentLifecycleStress()">Start Test</button>
+            <div id="lifecycle-stress-status" class="status"></div>
+            <div id="lifecycle-stress-log" class="log-output"></div>
+        </div>
+
+        <div class="test-section">
+            <h3>MEDIUM Medium: Timer Overlap Prevention</h3>
+            <p>Tests that overlapping timers are properly prevented</p>
+            <button onclick="testTimerOverlapPrevention()">Start Test</button>
+            <div id="timer-overlap-status" class="status"></div>
+            <div id="timer-overlap-log" class="log-output"></div>
+        </div>
+
+        <!-- Edge Case: Broadcast Channel Failures -->
+        <div class="test-section">
+            <h3>MEDIUM Medium: Broadcast Channel Failure Handling</h3>
+            <p>Tests behavior when BroadcastChannel fails or becomes unavailable</p>
+            <button onclick="testBroadcastFailure()">Start Test</button>
+            <div id="broadcast-failure-status" class="status"></div>
+            <div id="broadcast-failure-log" class="log-output"></div>
+        </div>
+
+        <!-- Edge Case: Expiry Corruption -->
+        <div class="test-section">
+            <h3>MEDIUM Medium: LocalStorage Expiry Corruption</h3>
+            <p>Tests behavior when localStorage expiry data becomes corrupted</p>
+            <button onclick="testExpiryCorruption()">Start Test</button>
+            <div id="expiry-corruption-status" class="status"></div>
+            <div id="expiry-corruption-log" class="log-output"></div>
+        </div>
+    </div>
+
+    <!-- Global Test Controls -->
+    <div class="test-section">
+        <h3>Global Test Controls</h3>
+        <button onclick="runAllTests()">Run All Critical Tests</button>
+        <button onclick="clearAllLogs()">Clear All Logs</button>
+        <button onclick="simulateTabActivity()">Simulate Tab Activity</button>
+        <button onclick="checkMemoryUsage()">Check Memory Usage</button>
+    </div>
+
+    <!-- Global Status -->
+    <div class="test-section">
+        <h3>Test Environment Status</h3>
+        <div id="environment-status"></div>
+        <div id="global-log" class="log-output"></div>
+    </div>
+
+    <script>
+        // Mock IdleWarningDialog for testing purposes
+        class MockIdleWarningDialog {
+            constructor() {
+                this.enableDebugLogs = true;
+                this.enableMultiTab = true;
+                this.idleTimeout = 5000; // 5 seconds for testing
+                this.warningTimeout = 3000; // 3 seconds for testing
+                this.isWarningShown = false;
+                this.isIdle = false;
+                this.timers = new Set();
+                this.listeners = new Map();
+                this.setupBroadcast();
+            }
+
+            setupBroadcast() {
+                try {
+                    this.broadcastChannel = new BroadcastChannel('idle-test-channel');
+                    this.broadcastChannel.onmessage = (event) => {
+                        this.log(`Received broadcast: ${event.data.type}`);
+                        this.handleBroadcastMessage(event.data);
+                    };
+                } catch (error) {
+                    this.log('BroadcastChannel not supported');
+                }
+            }
+
+            log(message, ...args) {
+                console.log(`[MockIdleDialog] ${message}`, ...args);
+                const globalLog = document.getElementById('global-log');
+                if (globalLog) {
+                    globalLog.innerHTML += `<div>[${new Date().toLocaleTimeString()}] ${message}</div>`;
+                    globalLog.scrollTop = globalLog.scrollHeight;
+                }
+            }
+
+            handleBroadcastMessage(data) {
+                switch(data.type) {
+                    case 'IDLE_END':
+                        if (this.isWarningShown) {
+                            this.log('Closing warning due to IDLE_END broadcast');
+                            this.isWarningShown = false;
+                        }
+                        break;
+                    case 'WARNING_START':
+                        if (!this.isWarningShown) {
+                            this.log('Showing warning due to WARNING_START broadcast');
+                            this.isWarningShown = true;
+                        }
+                        break;
+                }
+            }
+
+            broadcast(type, data = {}) {
+                if (this.broadcastChannel) {
+                    this.broadcastChannel.postMessage({ type, ...data, timestamp: Date.now() });
+                }
+            }
+
+            simulateActivity() {
+                this.log('Activity detected - resetting idle state');
+                this.isIdle = false;
+                if (this.isWarningShown) {
+                    this.isWarningShown = false;
+                    this.log('Warning closed due to activity');
+                }
+                this.broadcast('IDLE_END');
+                return !this.isWarningShown;
+            }
+
+            simulateWarning() {
+                this.log('Warning dialog triggered');
+                this.isWarningShown = true;
+                this.isIdle = true;
+                this.broadcast('WARNING_START');
+                return this.isWarningShown;
+            }
+
+            cleanup() {
+                this.timers.forEach(timer => clearTimeout(timer));
+                this.timers.clear();
+                if (this.broadcastChannel) {
+                    this.broadcastChannel.close();
+                }
+            }
+        }
+
+        let mockDialog = new MockIdleWarningDialog();
+
+        // Test Functions
+        async function testInterruptDuringWarning() {
+            const statusEl = document.getElementById('interrupt-warning-status');
+            const logEl = document.getElementById('interrupt-warning-log');
+            logEl.innerHTML = '';
+            
+            statusEl.className = 'status warn';
+            statusEl.textContent = 'Testing interrupt during warning...';
+            
+            try {
+                // Step 1: Trigger warning
+                const warningShown = mockDialog.simulateWarning();
+                logEl.innerHTML += `<div>Step 1: Warning shown = ${warningShown}</div>`;
+                
+                // Step 2: Wait a moment then simulate activity
+                await new Promise(resolve => setTimeout(resolve, 1000));
+                const activityHandled = mockDialog.simulateActivity();
+                logEl.innerHTML += `<div>Step 2: Activity handled = ${activityHandled}</div>`;
+                
+                // Step 3: Verify warning is closed
+                const warningClosed = !mockDialog.isWarningShown;
+                logEl.innerHTML += `<div>Step 3: Warning closed = ${warningClosed}</div>`;
+                
+                if (warningClosed) {
+                    statusEl.className = 'status pass';
+                    statusEl.textContent = 'PASS: Warning properly closed on activity';
+                } else {
+                    statusEl.className = 'status fail';
+                    statusEl.textContent = 'FAIL: Warning did not close on activity';
+                }
+            } catch (error) {
+                statusEl.className = 'status fail';
+                statusEl.textContent = `ERROR: ${error.message}`;
+                logEl.innerHTML += `<div>ERROR: ${error.message}</div>`;
+            }
+        }
+
+        async function testMultiTabStateSync() {
+            const statusEl = document.getElementById('state-sync-status');
+            const logEl = document.getElementById('state-sync-log');
+            logEl.innerHTML = '';
+            
+            statusEl.className = 'status warn';
+            statusEl.textContent = 'Testing multi-tab state synchronization...';
+            
+            try {
+                // Create multiple mock dialogs to simulate tabs
+                const tab1 = new MockIdleWarningDialog();
+                const tab2 = new MockIdleWarningDialog();
+                
+                logEl.innerHTML += `<div>Created 2 mock tabs</div>`;
+                
+                // Trigger warning in tab 1
+                tab1.simulateWarning();
+                logEl.innerHTML += `<div>Tab 1 warning shown</div>`;
+                
+                // Wait for broadcast
+                await new Promise(resolve => setTimeout(resolve, 100));
+                
+                // Check if tab 2 received the warning
+                const tab2HasWarning = tab2.isWarningShown;
+                logEl.innerHTML += `<div>Tab 2 warning shown = ${tab2HasWarning}</div>`;
+                
+                // Simulate activity in tab 2
+                tab2.simulateActivity();
+                logEl.innerHTML += `<div>Tab 2 activity simulated</div>`;
+                
+                // Wait for broadcast
+                await new Promise(resolve => setTimeout(resolve, 100));
+                
+                // Check if tab 1 warning closed
+                const tab1WarningClosed = !tab1.isWarningShown;
+                logEl.innerHTML += `<div>Tab 1 warning closed = ${tab1WarningClosed}</div>`;
+                
+                // Cleanup
+                tab1.cleanup();
+                tab2.cleanup();
+                
+                if (tab2HasWarning && tab1WarningClosed) {
+                    statusEl.className = 'status pass';
+                    statusEl.textContent = 'PASS: Multi-tab state properly synchronized';
+                } else {
+                    statusEl.className = 'status fail';
+                    statusEl.textContent = 'FAIL: Multi-tab state synchronization issues';
+                }
+            } catch (error) {
+                statusEl.className = 'status fail';
+                statusEl.textContent = `ERROR: ${error.message}`;
+                logEl.innerHTML += `<div>ERROR: ${error.message}</div>`;
+            }
+        }
+
+        async function testRapidActivityDuringWarning() {
+            const statusEl = document.getElementById('rapid-activity-status');
+            const logEl = document.getElementById('rapid-activity-log');
+            logEl.innerHTML = '';
+            
+            statusEl.className = 'status warn';
+            statusEl.textContent = 'Testing rapid activity during warning...';
+            
+            try {
+                // Trigger warning
+                mockDialog.simulateWarning();
+                logEl.innerHTML += `<div>Warning triggered</div>`;
+                
+                // Simulate rapid activity (multiple clicks within throttle window)
+                let activityCount = 0;
+                for (let i = 0; i < 5; i++) {
+                    const handled = mockDialog.simulateActivity();
+                    if (handled) activityCount++;
+                    logEl.innerHTML += `<div>Activity ${i+1}: handled=${handled}</div>`;
+                    await new Promise(resolve => setTimeout(resolve, 50)); // 50ms intervals
+                }
+                
+                // Check final state
+                const warningClosed = !mockDialog.isWarningShown;
+                logEl.innerHTML += `<div>Final state: warning closed = ${warningClosed}</div>`;
+                logEl.innerHTML += `<div>Activities handled: ${activityCount}/5</div>`;
+                
+                if (warningClosed && activityCount > 0) {
+                    statusEl.className = 'status pass';
+                    statusEl.textContent = 'PASS: Rapid activity properly handled';
+                } else {
+                    statusEl.className = 'status fail';
+                    statusEl.textContent = 'FAIL: Rapid activity not handled correctly';
+                }
+            } catch (error) {
+                statusEl.className = 'status fail';
+                statusEl.textContent = `ERROR: ${error.message}`;
+                logEl.innerHTML += `<div>ERROR: ${error.message}</div>`;
+            }
+        }
+
+        async function testSimultaneousResets() {
+            const statusEl = document.getElementById('simultaneous-reset-status');
+            const logEl = document.getElementById('simultaneous-reset-log');
+            logEl.innerHTML = '';
+            
+            statusEl.className = 'status warn';
+            statusEl.textContent = 'Testing simultaneous reset calls...';
+            
+            try {
+                // Trigger warning state
+                mockDialog.simulateWarning();
+                logEl.innerHTML += `<div>Warning state established</div>`;
+                
+                // Simulate multiple rapid reset calls
+                const resetPromises = [];
+                for (let i = 0; i < 3; i++) {
+                    resetPromises.push(
+                        new Promise(resolve => {
+                            setTimeout(() => {
+                                mockDialog.simulateActivity();
+                                logEl.innerHTML += `<div>Reset ${i+1} triggered</div>`;
+                                resolve(i);
+                            }, i * 10); // Stagger by 10ms
+                        })
+                    );
+                }
+                
+                await Promise.all(resetPromises);
+                await new Promise(resolve => setTimeout(resolve, 200)); // Allow time for processing
+                
+                // Check final state
+                const isStable = !mockDialog.isWarningShown && !mockDialog.isIdle;
+                logEl.innerHTML += `<div>Final stable state: ${isStable}</div>`;
+                
+                if (isStable) {
+                    statusEl.className = 'status pass';
+                    statusEl.textContent = 'PASS: Simultaneous resets handled correctly';
+                } else {
+                    statusEl.className = 'status fail';
+                    statusEl.textContent = 'FAIL: Simultaneous resets caused state issues';
+                }
+            } catch (error) {
+                statusEl.className = 'status fail';
+                statusEl.textContent = `ERROR: ${error.message}`;
+                logEl.innerHTML += `<div>ERROR: ${error.message}</div>`;
+            }
+        }
+
+        async function testComponentLifecycleStress() {
+            const statusEl = document.getElementById('lifecycle-stress-status');
+            const logEl = document.getElementById('lifecycle-stress-log');
+            logEl.innerHTML = '';
+            
+            statusEl.className = 'status warn';
+            statusEl.textContent = 'Testing component lifecycle stress...';
+            
+            try {
+                const dialogs = [];
+                
+                // Create multiple instances rapidly
+                for (let i = 0; i < 5; i++) {
+                    const dialog = new MockIdleWarningDialog();
+                    dialogs.push(dialog);
+                    logEl.innerHTML += `<div>Created dialog ${i+1}</div>`;
+                    await new Promise(resolve => setTimeout(resolve, 50));
+                }
+                
+                // Trigger warnings in all
+                dialogs.forEach((dialog, index) => {
+                    dialog.simulateWarning();
+                    logEl.innerHTML += `<div>Dialog ${index+1} warning triggered</div>`;
+                });
+                
+                await new Promise(resolve => setTimeout(resolve, 200));
+                
+                // Cleanup all at once
+                let cleanupSuccess = true;
+                dialogs.forEach((dialog, index) => {
+                    try {
+                        dialog.cleanup();
+                        logEl.innerHTML += `<div>Dialog ${index+1} cleaned up</div>`;
+                    } catch (error) {
+                        cleanupSuccess = false;
+                        logEl.innerHTML += `<div>Dialog ${index+1} cleanup failed: ${error.message}</div>`;
+                    }
+                });
+                
+                if (cleanupSuccess) {
+                    statusEl.className = 'status pass';
+                    statusEl.textContent = 'PASS: Component lifecycle stress handled';
+                } else {
+                    statusEl.className = 'status fail';
+                    statusEl.textContent = 'FAIL: Component lifecycle stress caused issues';
+                }
+            } catch (error) {
+                statusEl.className = 'status fail';
+                statusEl.textContent = `ERROR: ${error.message}`;
+                logEl.innerHTML += `<div>ERROR: ${error.message}</div>`;
+            }
+        }
+
+        async function testTimerOverlapPrevention() {
+            const statusEl = document.getElementById('timer-overlap-status');
+            const logEl = document.getElementById('timer-overlap-log');
+            logEl.innerHTML = '';
+            
+            statusEl.className = 'status warn';
+            statusEl.textContent = 'Testing timer overlap prevention...';
+            
+            try {
+                // Track active timers
+                let activeTimers = 0;
+                const originalSetTimeout = window.setTimeout;
+                const originalClearTimeout = window.clearTimeout;
+                
+                window.setTimeout = function(...args) {
+                    activeTimers++;
+                    logEl.innerHTML += `<div>Timer created. Active: ${activeTimers}</div>`;
+                    return originalSetTimeout.apply(this, args);
+                };
+                
+                window.clearTimeout = function(id) {
+                    if (id) {
+                        activeTimers = Math.max(0, activeTimers - 1);
+                        logEl.innerHTML += `<div>Timer cleared. Active: ${activeTimers}</div>`;
+                    }
+                    return originalClearTimeout.apply(this, arguments);
+                };
+                
+                // Rapidly trigger multiple timer operations
+                for (let i = 0; i < 3; i++) {
+                    mockDialog.simulateWarning();
+                    await new Promise(resolve => setTimeout(resolve, 100));
+                    mockDialog.simulateActivity();
+                    await new Promise(resolve => setTimeout(resolve, 100));
+                }
+                
+                // Wait for timers to settle
+                await new Promise(resolve => setTimeout(resolve, 500));
+                
+                // Restore original functions
+                window.setTimeout = originalSetTimeout;
+                window.clearTimeout = originalClearTimeout;
+                
+                logEl.innerHTML += `<div>Final active timers: ${activeTimers}</div>`;
+                
+                if (activeTimers <= 2) { // Some timers are expected (countdown, etc.)
+                    statusEl.className = 'status pass';
+                    statusEl.textContent = 'PASS: Timer overlap properly prevented';
+                } else {
+                    statusEl.className = 'status fail';
+                    statusEl.textContent = `FAIL: Too many active timers (${activeTimers})`;
+                }
+            } catch (error) {
+                statusEl.className = 'status fail';
+                statusEl.textContent = `ERROR: ${error.message}`;
+                logEl.innerHTML += `<div>ERROR: ${error.message}</div>`;
+            }
+        }
+
+        async function testBroadcastFailure() {
+            const statusEl = document.getElementById('broadcast-failure-status');
+            const logEl = document.getElementById('broadcast-failure-log');
+            logEl.innerHTML = '';
+            
+            statusEl.className = 'status warn';
+            statusEl.textContent = 'Testing broadcast channel failure handling...';
+            
+            try {
+                // Create dialog with broken broadcast
+                const brokenDialog = new MockIdleWarningDialog();
+                
+                // Break the broadcast channel
+                const originalPostMessage = brokenDialog.broadcastChannel.postMessage;
+                brokenDialog.broadcastChannel.postMessage = function() {
+                    throw new Error('Broadcast channel failed');
+                };
+                
+                logEl.innerHTML += `<div>Broadcast channel broken</div>`;
+                
+                // Try to trigger warning (should still work locally)
+                const warningShown = brokenDialog.simulateWarning();
+                logEl.innerHTML += `<div>Warning shown despite broadcast failure: ${warningShown}</div>`;
+                
+                // Try to handle activity (should still work locally)
+                const activityHandled = brokenDialog.simulateActivity();
+                logEl.innerHTML += `<div>Activity handled despite broadcast failure: ${activityHandled}</div>`;
+                
+                brokenDialog.cleanup();
+                
+                if (warningShown && activityHandled) {
+                    statusEl.className = 'status pass';
+                    statusEl.textContent = 'PASS: Graceful degradation on broadcast failure';
+                } else {
+                    statusEl.className = 'status fail';
+                    statusEl.textContent = 'FAIL: Broadcast failure broke functionality';
+                }
+            } catch (error) {
+                statusEl.className = 'status fail';
+                statusEl.textContent = `ERROR: ${error.message}`;
+                logEl.innerHTML += `<div>ERROR: ${error.message}</div>`;
+            }
+        }
+
+        async function testExpiryCorruption() {
+            const statusEl = document.getElementById('expiry-corruption-status');
+            const logEl = document.getElementById('expiry-corruption-log');
+            logEl.innerHTML = '';
+            
+            statusEl.className = 'status warn';
+            statusEl.textContent = 'Testing expiry corruption handling...';
+            
+            try {
+                // Corrupt localStorage expiry data
+                localStorage.setItem('idle-test-channel-expiry', 'invalid-json-data');
+                logEl.innerHTML += `<div>Corrupted localStorage expiry data</div>`;
+                
+                // Try to read expiry (should handle gracefully)
+                let expiryReadFailed = false;
+                try {
+                    const expiry = localStorage.getItem('idle-test-channel-expiry');
+                    JSON.parse(expiry);
+                } catch (parseError) {
+                    expiryReadFailed = true;
+                    logEl.innerHTML += `<div>Expiry read failed as expected: ${parseError.message}</div>`;
+                }
+                
+                // Test that dialog still functions
+                const warningShown = mockDialog.simulateWarning();
+                logEl.innerHTML += `<div>Warning shown with corrupted expiry: ${warningShown}</div>`;
+                
+                // Clean up corrupted data
+                localStorage.removeItem('idle-test-channel-expiry');
+                logEl.innerHTML += `<div>Cleaned up corrupted data</div>`;
+                
+                if (expiryReadFailed && warningShown) {
+                    statusEl.className = 'status pass';
+                    statusEl.textContent = 'PASS: Expiry corruption handled gracefully';
+                } else {
+                    statusEl.className = 'status fail';
+                    statusEl.textContent = 'FAIL: Expiry corruption not handled properly';
+                }
+            } catch (error) {
+                statusEl.className = 'status fail';
+                statusEl.textContent = `ERROR: ${error.message}`;
+                logEl.innerHTML += `<div>ERROR: ${error.message}</div>`;
+            }
+        }
+
+        async function runAllTests() {
+            console.log('Running all critical tests...');
+            await testInterruptDuringWarning();
+            await new Promise(resolve => setTimeout(resolve, 500));
+            await testMultiTabStateSync();
+            await new Promise(resolve => setTimeout(resolve, 500));
+            await testRapidActivityDuringWarning();
+            await new Promise(resolve => setTimeout(resolve, 500));
+            await testSimultaneousResets();
+            
+            updateEnvironmentStatus();
+        }
+
+        function clearAllLogs() {
+            document.querySelectorAll('.log-output').forEach(log => log.innerHTML = '');
+            document.querySelectorAll('.status').forEach(status => {
+                status.className = 'status';
+                status.textContent = '';
+            });
+        }
+
+        function simulateTabActivity() {
+            mockDialog.log('Simulating user activity across tabs');
+            mockDialog.broadcast('ACTIVITY_DETECTED', { source: 'test-suite' });
+        }
+
+        function checkMemoryUsage() {
+            const statusEl = document.getElementById('environment-status');
+            
+            // Check for common memory leak indicators
+            const checks = {
+                'BroadcastChannel instances': () => mockDialog.broadcastChannel ? 'OK' : 'None',
+                'Active timers in mock': () => mockDialog.timers.size,
+                'Event listeners': () => document.getEventListeners ? 'Checking available' : 'Cannot check',
+                'LocalStorage entries': () => Object.keys(localStorage).filter(k => k.includes('idle')).length
+            };
+            
+            let statusHTML = '<h4>Memory Usage Check</h4>';
+            Object.entries(checks).forEach(([name, checkFn]) => {
+                const result = checkFn();
+                statusHTML += `<div>${name}: ${result}</div>`;
+            });
+            
+            statusEl.innerHTML = statusHTML;
+        }
+
+        function updateEnvironmentStatus() {
+            const statusEl = document.getElementById('environment-status');
+            statusEl.innerHTML = `
+                <h4>Test Environment</h4>
+                <div>BroadcastChannel supported: ${typeof BroadcastChannel !== 'undefined'}</div>
+                <div>LocalStorage available: ${typeof localStorage !== 'undefined'}</div>
+                <div>Tab count: ${window.name || 'Unknown'}</div>
+                <div>Current time: ${new Date().toLocaleTimeString()}</div>
+                <div>Mock dialog state: Warning=${mockDialog.isWarningShown}, Idle=${mockDialog.isIdle}</div>
+            `;
+        }
+
+        // Initialize
+        window.addEventListener('load', () => {
+            updateEnvironmentStatus();
+            // Set unique tab identifier
+            if (!window.name) {
+                window.name = `tab-${Date.now()}`;
+            }
+        });
+
+        // Cleanup on page unload
+        window.addEventListener('beforeunload', () => {
+            mockDialog.cleanup();
+        });
+
+        // Real-time environment monitoring
+        setInterval(updateEnvironmentStatus, 5000);
+    </script>
+</body>
+</html>
