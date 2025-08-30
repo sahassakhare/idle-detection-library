@@ -16,14 +16,18 @@ export class Idle {
   // Multi-tab communication
   private broadcastChannel: BroadcastChannel | null = null;
   private isHandlingBroadcast = false;
+  private enableDebugLogs = false;
   
   constructor(config: IdleConfig = {}) {
     this.config = {
       idleTimeout: config.idleTimeout || 20 * 60 * 1000, // 20 minutes
       warningTimeout: config.warningTimeout || 5 * 60 * 1000, // 5 minutes
       autoResume: config.autoResume !== false,
-      idleName: config.idleName || 'default'
+      idleName: config.idleName || 'default',
+      enableDebugLogs: config.enableDebugLogs || false
     };
+    
+    this.enableDebugLogs = this.config.enableDebugLogs;
     
     this.state = {
       isIdle: false,
@@ -35,6 +39,15 @@ export class Idle {
     
     this.initializeEventListeners();
     this.setupMultiTabCommunication();
+  }
+  
+  /**
+   * Private method for conditional debug logging
+   */
+  private debugLog(message: string, ...args: any[]): void {
+    if (this.enableDebugLogs) {
+      console.log(message, ...args);
+    }
   }
   
   private initializeEventListeners(): void {
@@ -50,14 +63,14 @@ export class Idle {
         this.handleBroadcastMessage(event.data);
       };
     } catch (error) {
-      console.warn('BroadcastChannel not supported, multi-tab sync disabled');
+      console.warn('BroadcastChannel not supported, multi-tab sync disabled'); // Keep system warnings
     }
   }
   
-  private handleBroadcastMessage(data: { event: IdleEvent; state: IdleState }): void {
+  private handleBroadcastMessage(data: { event: IdleEvent; state: IdleState; expiryAt?: string }): void {
     // Only handle events from other tabs, don't re-broadcast to prevent loops
     if (data.event && data.state && !this.isHandlingBroadcast) {
-      console.log(`[Idle Core] Received broadcast: ${data.event}`);
+      this.debugLog(`[Idle Core] Received broadcast: ${data.event}`);
       this.isHandlingBroadcast = true;
       
       // Update local state based on broadcast
@@ -66,7 +79,9 @@ export class Idle {
           if (this.state.isIdle || this.state.isWarning) {
             this.state.isIdle = false;
             this.state.isWarning = false;
-            this.state.lastActivity = new Date();
+            // Use sender's timestamp instead of new Date() for sync
+            this.state.lastActivity = data.state.lastActivity ? new Date(data.state.lastActivity) : new Date();
+            this.state.idleTime = data.state.idleTime || 0;
             this.clearTimers();
             this.startIdleTimer();
           }
@@ -79,6 +94,11 @@ export class Idle {
         case IdleEvent.WARNING_START:
           if (!this.state.isWarning) {
             this.state.isWarning = true;
+            // Sync expiry if provided in broadcast
+            if (data.expiryAt && this.expiry) {
+              const sharedExpiry = new Date(data.expiryAt);
+              this.expiry.set(sharedExpiry);
+            }
           }
           break;
         case IdleEvent.TIMEOUT:
@@ -96,10 +116,18 @@ export class Idle {
   private broadcastEvent(event: IdleEvent, state: IdleState): void {
     if (this.broadcastChannel && !this.isHandlingBroadcast) {
       try {
-        console.log(`[Idle Core] Broadcasting: ${event}`);
-        this.broadcastChannel.postMessage({ event, state: { ...state } });
+        this.debugLog(`[Idle Core] Broadcasting: ${event}`);
+        // Include expiry timestamp for countdown sync
+        const payload: any = { event, state: { ...state } };
+        if (this.expiry && (event === IdleEvent.WARNING_START || event === IdleEvent.IDLE_START)) {
+          const expiryTime = this.expiry.get();
+          if (expiryTime) {
+            payload.expiryAt = expiryTime.toISOString();
+          }
+        }
+        this.broadcastChannel.postMessage(payload);
       } catch (error) {
-        console.warn('Failed to broadcast event:', error);
+        console.warn('Failed to broadcast event:', error); // Keep error warnings
       }
     }
   }
@@ -163,7 +191,8 @@ export class Idle {
   }
   
   public watch(): void {
-    this.reset();
+    // Don't clear shared expiry during initialization to preserve multi-tab sync
+    this.reset(false);
     this.startIdleTimer();
     this.startExpiryCheck();
     
@@ -188,7 +217,7 @@ export class Idle {
     this.reset();
   }
   
-  public reset(): void {
+  public reset(clearExpiry: boolean = true): void {
     this.state = {
       isIdle: false,
       isWarning: false,
@@ -199,7 +228,8 @@ export class Idle {
     
     this.clearTimers();
     
-    if (this.expiry) {
+    // Only clear expiry if explicitly requested (not during initialization)
+    if (clearExpiry && this.expiry) {
       this.expiry.clear();
     }
     

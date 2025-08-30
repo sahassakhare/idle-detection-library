@@ -3,6 +3,7 @@ export interface IdleConfig {
   warningTimeout?: number;
   autoResume?: boolean;
   idleName?: string;
+  enableDebugLogs?: boolean;
 }
 
 export interface IdleState {

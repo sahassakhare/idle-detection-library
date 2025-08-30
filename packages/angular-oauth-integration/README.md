@@ -335,6 +335,7 @@ provideIdleOAuthConfig({
 - `messageText: string` - Dialog message
 - `extendText: string` - Extend button text
 - `logoutText: string` - Logout button text
+- `enableDebugLogs: boolean` - Enable debug logging to console for development (default: `false`)
 
 ##### CSS Class Customization Inputs
 - `backdropClass: string` - Overlay background styling (default: `'idle-warning-backdrop'`)

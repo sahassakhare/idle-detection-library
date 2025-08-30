@@ -69,22 +69,22 @@ import { ManualControlExampleComponent } from './manual-control-example.componen
         <div *ngIf="activeTab === 'basic'">
           <div class="feature-grid">
             <div class="feature-item">
-              <div class="feature-icon">⏱️</div>
+              <div class="feature-icon">TIMER</div>
               <div class="feature-title">Auto Idle Detection</div>
               <div class="feature-description">Automatically monitors user activity</div>
             </div>
             <div class="feature-item">
-              <div class="feature-icon">🔒</div>
+              <div class="feature-icon">SECURE</div>
               <div class="feature-title">Secure Dialog</div>
               <div class="feature-description">No backdrop clicks (industry standard)</div>
             </div>
             <div class="feature-item">
-              <div class="feature-icon">⚡</div>
+              <div class="feature-icon">FAST</div>
               <div class="feature-title">Zero Setup</div>
               <div class="feature-description">Just add one component tag</div>
             </div>
             <div class="feature-item">
-              <div class="feature-icon">🎨</div>
+              <div class="feature-icon">STYLE</div>
               <div class="feature-title">Customizable</div>
               <div class="feature-description">Themes, timeouts, and messages</div>
             </div>
@@ -104,6 +104,7 @@ import { ManualControlExampleComponent } from './manual-control-example.componen
             [idleTimeout]="60000"
             [warningTimeout]="20000"
             [enableMultiTab]="true"
+            [enableDebugLogs]="true"
             [multiTabChannelName]="'demo-idle-channel'"
             [onLogoutCallback]="handleLogout"
             [onExtendCallback]="handleExtend"
@@ -164,7 +165,7 @@ import { ManualControlExampleComponent } from './manual-control-example.componen
         <!-- CSS Customization Tab -->
         <div *ngIf="activeTab === 'css-custom'">
           <div class="css-custom-section">
-            <h2>🎨 CSS Class Customization Example</h2>
+            <h2>CSS Class Customization Example</h2>
             <p>This example demonstrates how to completely customize the look and feel of the idle warning dialog using CSS class inputs.</p>
             
             <div class="customization-info">
@@ -189,7 +190,7 @@ import { ManualControlExampleComponent } from './manual-control-example.componen
               [idleTimeout]="45000"
               [warningTimeout]="15000"
               [enableMultiTab]="false"
-              dialogTitle="⚠️ Session Alert"
+              dialogTitle="Session Alert"
               dialogMessage="Your session will expire soon due to inactivity. Please choose an action to continue."
               extendButtonText="Continue Working"
               logoutButtonText="Sign Out"

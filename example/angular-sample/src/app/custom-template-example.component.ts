@@ -27,6 +27,7 @@ import { IdleWarningDialogComponent } from '../../../../packages/angular-oauth-i
         [idleTimeout]="60000"
         [warningTimeout]="15000"
         [enableMultiTab]="true"
+        [enableDebugLogs]="true"
         multiTabChannelName="custom-template-demo"
         [onExtendCallback]="handleExtend"
         [onLogoutCallback]="handleLogout"

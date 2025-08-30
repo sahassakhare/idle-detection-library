@@ -187,7 +187,7 @@ export class IdleEffects {
       // CRITICAL FIX: Add delay to prevent immediate logout during extend session
       // This gives the extend session process time to complete
       tap(([action, , isWarning]) => {
-        console.log(`🚨 Logout effect triggered by ${action.type}, isWarning: ${isWarning}`);
+        console.log(`Logout effect triggered by ${action.type}, isWarning: ${isWarning}`);
       }),
       // Add small delay to allow extend session to complete
       switchMap(([action, multiTabCoordination, isWarning]) => {
@@ -207,7 +207,7 @@ export class IdleEffects {
         }
       }),
       switchMap(() => {
-        console.log('🚪 Executing logout');
+        console.log('Executing logout');
         // Check if the service and method exist
         if (this.oidcSecurityService && 
             typeof this.oidcSecurityService.logoff === 'function') {
@@ -262,7 +262,7 @@ export class IdleEffects {
     this.actions$.pipe(
       ofType(IdleActions.userAuthenticated, IdleActions.restartIdleDetection),
       map(() => {
-        console.log('🔄 Restarting idle detection after authentication');
+        console.log('Restarting idle detection after authentication');
         return IdleActions.resetIdle();
       })
     )
@@ -276,7 +276,7 @@ export class IdleEffects {
       // During extend session, the service handles restarting
       filter(([, isWarning]) => !isWarning),
       map(() => {
-        console.log('🚀 Starting idle detection (from effects)');
+        console.log('Starting idle detection (from effects)');
         return IdleActions.startIdleDetection();
       })
     )
@@ -286,7 +286,7 @@ export class IdleEffects {
     this.actions$.pipe(
       ofType(IdleActions.userLoggedOut),
       map(() => {
-        console.log('🛑 Stopping idle detection - user logged out');
+        console.log('Stopping idle detection - user logged out');
         return IdleActions.stopIdleDetection();
       })
     )
@@ -296,7 +296,7 @@ export class IdleEffects {
     this.actions$.pipe(
       ofType(IdleActions.extendSession),
       tap(() => {
-        console.log('⏰ NgRx: Extend session action received');
+        console.log('NgRx: Extend session action received');
         console.log('   - Service will handle timer management');
         console.log('   - Effects will be temporarily suppressed');
       })

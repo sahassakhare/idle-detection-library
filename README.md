@@ -133,6 +133,7 @@ export class AppComponent {
 | `showExtendButton` | `boolean` | `true` | Show/hide extend button |
 | `showLogoutButton` | `boolean` | `true` | Show/hide logout button |
 | `customTemplateRef` | `TemplateRef<any>` | - | Custom template reference |
+| `enableDebugLogs` | `boolean` | `false` | Enable debug logging to console for development |
 
 ### CSS Class Customization Inputs
 
@@ -293,6 +294,37 @@ export class AppComponent {
   }
 }
 ```
+
+### Debug Logging
+
+Enable detailed console logging for development and debugging:
+
+```typescript
+<idle-warning-dialog
+  [idleTimeout]="900000"
+  [warningTimeout]="60000"
+  [enableDebugLogs]="true"
+  [onLogoutCallback]="handleLogout">
+</idle-warning-dialog>
+```
+
+**Development vs Production:**
+```typescript
+// Development environment
+<idle-warning-dialog [enableDebugLogs]="!environment.production">
+
+// Explicit control
+<idle-warning-dialog [enableDebugLogs]="false"> <!-- Production: No logs -->
+<idle-warning-dialog [enableDebugLogs]="true">  <!-- Development: With logs -->
+```
+
+When `enableDebugLogs` is `true`, the component will output detailed console logs including:
+- Component initialization and configuration
+- Idle detection events (start, end, warning)
+- Multi-tab coordination messages
+- User actions (extend, logout, custom actions)
+- Timer management (reset, pause, resume)
+- Activity detection events
 
 ##  Themes
 

@@ -641,6 +641,18 @@ export class IdleWarningDialogComponent implements OnInit, OnDestroy {
    */
   @Input() showLogoutButton?: boolean = true; // Show/hide logout button specifically
   
+  /**
+   * Whether to enable debug logging to console.
+   * Set to false in production to disable all console.log statements.
+   * 
+   * @default false
+   * @example
+   * ```html
+   * <idle-warning-dialog [enableDebugLogs]="true">
+   * ```
+   */
+  @Input() enableDebugLogs: boolean = false;
+  
   
   // CSS class customization
   @Input() backdropClass: string = 'idle-warning-backdrop';
@@ -901,8 +913,17 @@ export class IdleWarningDialogComponent implements OnInit, OnDestroy {
 
   constructor(private cdr: ChangeDetectorRef) {}
 
+  /**
+   * Private method for conditional debug logging
+   */
+  private debugLog(message: string, ...args: any[]): void {
+    if (this.enableDebugLogs) {
+      console.log(message, ...args);
+    }
+  }
+
   ngOnInit(): void {
-    console.log('[IdleWarningDialog] ngOnInit called', {
+    this.debugLog('[IdleWarningDialog] ngOnInit called', {
       enableIdleDetection: this.enableIdleDetection,
       idleTimeout: this.idleTimeout,
       warningTimeout: this.warningTimeout,
@@ -920,7 +941,7 @@ export class IdleWarningDialogComponent implements OnInit, OnDestroy {
     
     // Setup idle detection if enabled
     if (this.enableIdleDetection) {
-      console.log('[IdleWarningDialog] Setting up idle detection');
+      this.debugLog('[IdleWarningDialog] Setting up idle detection');
       this.setupIdleDetection();
     } else if (this.warningData) {
       // Backward compatibility - show immediately if warningData provided
@@ -930,14 +951,43 @@ export class IdleWarningDialogComponent implements OnInit, OnDestroy {
 
   private startCountdown(): void {
     this.countdownTimer = setInterval(() => {
-      const currentTime = this.timeRemaining();
-      if (currentTime <= 0) {
-        if (this.autoClose) {
-          this.onLogout();
+      // In multi-tab mode, periodically sync with shared expiry to stay accurate
+      if (this.enableMultiTab && this.multiTabExpiry) {
+        const sharedExpiry = this.multiTabExpiry.get();
+        if (sharedExpiry) {
+          const sharedRemaining = sharedExpiry.getTime() - Date.now();
+          if (sharedRemaining > 0) {
+            // Use shared expiry as source of truth
+            this.timeRemaining.set(sharedRemaining);
+          } else {
+            // Shared expiry indicates timeout
+            if (this.autoClose) {
+              this.onLogout();
+            }
+            return;
+          }
+        } else {
+          // No shared expiry - fall back to local countdown
+          const currentTime = this.timeRemaining();
+          if (currentTime <= 0) {
+            if (this.autoClose) {
+              this.onLogout();
+            }
+            return;
+          }
+          this.timeRemaining.set(currentTime - 1000);
         }
-        return;
+      } else {
+        // Single-tab mode - use local countdown
+        const currentTime = this.timeRemaining();
+        if (currentTime <= 0) {
+          if (this.autoClose) {
+            this.onLogout();
+          }
+          return;
+        }
+        this.timeRemaining.set(currentTime - 1000);
       }
-      this.timeRemaining.set(currentTime - 1000);
       
       // Force immediate change detection for OnPush strategy to update custom template
       // Using detectChanges() for immediate update in both single-tab and multi-tab modes
@@ -952,7 +1002,7 @@ export class IdleWarningDialogComponent implements OnInit, OnDestroy {
   }
 
   private setupIdleDetection(): void {
-    console.log('[IdleWarningDialog] Setting up idle detection');
+    this.debugLog('[IdleWarningDialog] Setting up idle detection');
     
     // Create bound event handler for activity detection
     this.boundHandleActivity = this.handleActivity.bind(this);
@@ -964,15 +1014,15 @@ export class IdleWarningDialogComponent implements OnInit, OnDestroy {
 
     // Setup multi-tab coordination
     if (this.enableMultiTab) {
-      console.log('[IdleWarningDialog] Setting up multi-tab coordination');
+      this.debugLog('[IdleWarningDialog] Setting up multi-tab coordination');
       this.setupMultiTabCoordination();
       
       // Multi-tab mode: use core idle detection (interrupts are handled by the core)
-      console.log('[IdleWarningDialog] Starting idle detection with multi-tab core');
+      this.debugLog('[IdleWarningDialog] Starting idle detection with multi-tab core');
       this.idleCore?.watch();
     } else {
       // Single-tab mode: use local timer
-      console.log('[IdleWarningDialog] Starting idle detection with local timer');
+      this.debugLog('[IdleWarningDialog] Starting idle detection with local timer');
       this.resetIdleTimer();
     }
   }
@@ -982,7 +1032,7 @@ export class IdleWarningDialogComponent implements OnInit, OnDestroy {
     const idleTimeoutMs = this.idleTimeout || 900000;
     const warningTimeoutMs = this.warningTimeout || 60000;
     
-    console.log('[Multi-Tab] Creating Idle core with config:', {
+    this.debugLog('[Multi-Tab] Creating Idle core with config:', {
       idleTimeout: idleTimeoutMs,
       warningTimeout: warningTimeoutMs,
       channelName: this.multiTabChannelName || 'idle-detection-channel'
@@ -991,7 +1041,8 @@ export class IdleWarningDialogComponent implements OnInit, OnDestroy {
     this.idleCore = new Idle({
       idleTimeout: idleTimeoutMs,
       warningTimeout: warningTimeoutMs,
-      idleName: this.multiTabChannelName || 'idle-detection-channel'
+      idleName: this.multiTabChannelName || 'idle-detection-channel',
+      enableDebugLogs: this.enableDebugLogs
     });
     
     // Set up interrupts (required for idle detection to work)
@@ -1005,30 +1056,33 @@ export class IdleWarningDialogComponent implements OnInit, OnDestroy {
     
     // Listen to core idle events for multi-tab sync (now broadcasted automatically)
     this.idleCore.on(IdleEvent.IDLE_START, () => {
-      console.log('[Multi-Tab] Idle start event received');
+      this.debugLog('[Multi-Tab] Idle start event received');
       if (!this.isWarningShown()) {
         this.triggerIdle();
       }
     });
     
     this.idleCore.on(IdleEvent.WARNING_START, () => {
-      console.log('[Multi-Tab] Warning start event received');
+      this.debugLog('[Multi-Tab] Warning start event received');
       if (!this.isWarningShown()) {
         this.showWarning();
+      } else {
+        // Already showing warning - sync countdown with shared expiry
+        this.syncCountdownWithExpiry();
       }
     });
     
     this.idleCore.on(IdleEvent.TIMEOUT, () => {
-      console.log('[Multi-Tab] Timeout event received');
+      this.debugLog('[Multi-Tab] Timeout event received');
       this.handleTimeout();
     });
     
     this.idleCore.on(IdleEvent.IDLE_END, () => {
-      console.log('[Multi-Tab] Idle end event received');
+      this.debugLog('[Multi-Tab] Idle end event received');
       if (this.isWarningShown()) {
         // IDLE_END during warning means someone took action (interrupts are cleared during warning)
         // Close dialog in all tabs for synchronization
-        console.log('[Multi-Tab] Closing warning dialog - action taken in one of the tabs');
+        this.debugLog('[Multi-Tab] Closing warning dialog - action taken in one of the tabs');
         this.isWarningShown.set(false);
         this.isIdle = false;
         this.warningEnd.emit();
@@ -1043,6 +1097,9 @@ export class IdleWarningDialogComponent implements OnInit, OnDestroy {
         this.idleEnd.emit();
         this.clearIdleTimers();
       }
+      
+      // Sync countdown display with any timer reset from other tabs
+      this.syncCountdownWithExpiry();
     });
     
     // Start watching
@@ -1065,7 +1122,7 @@ export class IdleWarningDialogComponent implements OnInit, OnDestroy {
       
       // Reset core idle timer (handles multi-tab coordination automatically)
       if (this.enableMultiTab && this.idleCore) {
-        console.log('[Multi-Tab] Resetting idle timer due to activity');
+        this.debugLog('[Multi-Tab] Resetting idle timer due to activity');
         this.idleCore.reset();
         // When using multi-tab, don't use local timers
         return;
@@ -1091,7 +1148,7 @@ export class IdleWarningDialogComponent implements OnInit, OnDestroy {
   private resetIdleTimer(): void {
     // Don't use local timers when multi-tab is enabled
     if (this.enableMultiTab && this.idleCore) {
-      console.log('[resetIdleTimer] Skipping - multi-tab mode is active');
+      this.debugLog('[resetIdleTimer] Skipping - multi-tab mode is active');
       return;
     }
     
@@ -1099,35 +1156,50 @@ export class IdleWarningDialogComponent implements OnInit, OnDestroy {
     this.clearIdleTimers();
     
     // Start new idle timer
-    console.log(`[resetIdleTimer] Starting idle timer for ${this.idleTimeout}ms`);
+    this.debugLog(`[resetIdleTimer] Starting idle timer for ${this.idleTimeout}ms`);
     this.idleTimer = setTimeout(() => {
-      console.log('[resetIdleTimer] Idle timeout reached - triggering idle');
+      this.debugLog('[resetIdleTimer] Idle timeout reached - triggering idle');
       this.triggerIdle();
     }, this.idleTimeout);
   }
 
   private triggerIdle(): void {
-    console.log('[triggerIdle] User is now idle');
+    this.debugLog('[triggerIdle] User is now idle');
     this.isIdle = true;
     this.idleStart.emit();
     this.showWarning();
   }
 
   private showWarning(): void {
-    console.log('[showWarning] Showing warning dialog');
+    this.debugLog('[showWarning] Showing warning dialog');
     this.isWarningShown.set(true);
     this.warningStart.emit();
     
     // Clear interrupts during warning to prevent mouse movement from triggering IDLE_END
     if (this.enableMultiTab && this.idleCore) {
-      console.log('[Multi-Tab] Clearing interrupts during warning dialog');
+      this.debugLog('[Multi-Tab] Clearing interrupts during warning dialog');
       this.idleCore.clearInterrupts();
     }
     
-    // Initialize time remaining and start countdown
-    const warningTime = this.warningTimeout || this.initialTimeRemaining || 30000;
+    // Initialize time remaining - use shared expiry if available for multi-tab sync
+    let warningTime = this.warningTimeout || this.initialTimeRemaining || 30000;
+    
+    if (this.enableMultiTab && this.multiTabExpiry) {
+      const sharedExpiry = this.multiTabExpiry.get();
+      if (sharedExpiry) {
+        const remainingTime = sharedExpiry.getTime() - Date.now();
+        if (remainingTime > 0) {
+          warningTime = remainingTime;
+          this.debugLog('[Multi-Tab] Using shared expiry time:', { 
+            sharedExpiry: sharedExpiry.toISOString(), 
+            remainingTime: remainingTime 
+          });
+        }
+      }
+    }
+    
     this.timeRemaining.set(warningTime);
-    this.totalTime.set(warningTime);
+    this.totalTime.set(this.warningTimeout || this.initialTimeRemaining || 30000);
     this.startCountdown();
     
     // Start warning timeout timer
@@ -1142,6 +1214,28 @@ export class IdleWarningDialogComponent implements OnInit, OnDestroy {
         firstButton.focus();
       }
     }, 100);
+  }
+
+  /**
+   * Sync countdown display with shared expiry for multi-tab coordination
+   */
+  private syncCountdownWithExpiry(): void {
+    if (this.enableMultiTab && this.multiTabExpiry) {
+      const sharedExpiry = this.multiTabExpiry.get();
+      if (sharedExpiry) {
+        const remainingTime = sharedExpiry.getTime() - Date.now();
+        if (remainingTime > 0 && remainingTime !== this.timeRemaining()) {
+          this.debugLog('[Multi-Tab] Syncing countdown with shared expiry:', { 
+            currentRemaining: this.timeRemaining(),
+            sharedRemaining: remainingTime,
+            sharedExpiry: sharedExpiry.toISOString()
+          });
+          this.timeRemaining.set(remainingTime);
+          // Force change detection for synced display
+          this.cdr.detectChanges();
+        }
+      }
+    }
   }
 
   private handleTimeout(): void {
@@ -1214,14 +1308,14 @@ export class IdleWarningDialogComponent implements OnInit, OnDestroy {
   }
 
   onExtendSession(): void {
-    console.log('Extend session clicked');
+    this.debugLog('Extend session clicked');
     
     // Update last activity time
     this.lastActivity = Date.now();
     
     // Restore interrupts before resetting (so idle detection can continue)
     if (this.enableMultiTab && this.idleCore) {
-      console.log('[Multi-Tab] Restoring interrupts and resetting idle timer');
+      this.debugLog('[Multi-Tab] Restoring interrupts and resetting idle timer');
       const eventsString = this.activityEvents?.join(' ') || 'mousedown mousemove keypress scroll touchstart click';
       const documentInterruptSource = new DocumentInterruptSource(eventsString);
       this.idleCore.setInterrupts([documentInterruptSource]);
@@ -1244,12 +1338,12 @@ export class IdleWarningDialogComponent implements OnInit, OnDestroy {
     
     // Priority 1: User-provided callback
     if (this.onExtendCallback) {
-      console.log('Calling user-provided onExtendCallback()');
+      this.debugLog('Calling user-provided onExtendCallback()');
       this.onExtendCallback();
     }
     // Priority 2: warningData callback (backward compatibility)
     else if (this.warningData?.onExtendSession) {
-      console.log('Calling warningData.onExtendSession()');
+      this.debugLog('Calling warningData.onExtendSession()');
       this.warningData.onExtendSession();
     }
     
@@ -1260,7 +1354,7 @@ export class IdleWarningDialogComponent implements OnInit, OnDestroy {
 
 
   onLogout(): void {
-    console.log('Logout clicked');
+    this.debugLog('Logout clicked');
     
     // Hide warning and cleanup
     this.isWarningShown.set(false);
@@ -1273,12 +1367,12 @@ export class IdleWarningDialogComponent implements OnInit, OnDestroy {
     
     // Priority 1: User-provided callback
     if (this.onLogoutCallback) {
-      console.log('Calling user-provided onLogoutCallback()');
+      this.debugLog('Calling user-provided onLogoutCallback()');
       this.onLogoutCallback();
     }
     // Priority 2: warningData callback (backward compatibility)
     else if (this.warningData?.onLogout) {
-      console.log('Calling warningData.onLogout()');
+      this.debugLog('Calling warningData.onLogout()');
       this.warningData.onLogout();
     }
     
@@ -1291,7 +1385,7 @@ export class IdleWarningDialogComponent implements OnInit, OnDestroy {
     // This follows industry standards for critical session management dialogs
     event.preventDefault();
     event.stopPropagation();
-    console.log('Backdrop clicked - ignored for security (industry standard)');
+    this.debugLog('Backdrop clicked - ignored for security (industry standard)');
   }
 
   onMouseDown(event: Event): void {
@@ -1314,13 +1408,15 @@ export class IdleWarningDialogComponent implements OnInit, OnDestroy {
   }
   
   onCustomAction(action: CustomAction): void {
-    console.log(`Custom action triggered: ${action.id}`);
+    this.debugLog(`Custom action triggered: ${action.id}`);
     
     // Execute the callback
     try {
       action.callback();
     } catch (error) {
-      console.error(`Error executing custom action ${action.id}:`, error);
+      if (this.enableDebugLogs) {
+        console.error(`Error executing custom action ${action.id}:`, error);
+      }
     }
     
     // Close dialog if specified
@@ -1355,13 +1451,13 @@ export class IdleWarningDialogComponent implements OnInit, OnDestroy {
    * @memberof IdleWarningDialogComponent
    */
   pause(): void {
-    console.log('Pause called - disabling idle detection');
+    this.debugLog('Pause called - disabling idle detection');
     this.enableIdleDetection = false;
     this.clearIdleTimers();
     
     // Stop core idle detection in multi-tab mode
     if (this.enableMultiTab && this.idleCore) {
-      console.log('[Multi-Tab] Pausing core idle detection');
+      this.debugLog('[Multi-Tab] Pausing core idle detection');
       this.idleCore.stop();
     }
   }
@@ -1385,7 +1481,7 @@ export class IdleWarningDialogComponent implements OnInit, OnDestroy {
    * @memberof IdleWarningDialogComponent
    */
   resume(): void {
-    console.log('Resume called - enabling idle detection');
+    this.debugLog('Resume called - enabling idle detection');
     this.enableIdleDetection = true;
     
     // Reset idle state
@@ -1397,7 +1493,7 @@ export class IdleWarningDialogComponent implements OnInit, OnDestroy {
     
     // Reset core idle timer if multi-tab is enabled
     if (this.enableMultiTab && this.idleCore) {
-      console.log('[Multi-Tab] Resuming idle detection via core');
+      this.debugLog('[Multi-Tab] Resuming idle detection via core');
       
       // Re-setup interrupts since stop() cleared them
       const eventsString = this.activityEvents?.join(' ') || 'mousedown mousemove keypress scroll touchstart click';
@@ -1415,7 +1511,7 @@ export class IdleWarningDialogComponent implements OnInit, OnDestroy {
       }
       
       // Start new idle timer for single-tab mode
-      console.log('[Single-Tab] Resuming idle detection with local timer');
+      this.debugLog('[Single-Tab] Resuming idle detection with local timer');
       this.resetIdleTimer();
     }
   }
